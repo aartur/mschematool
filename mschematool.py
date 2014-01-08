@@ -160,13 +160,13 @@ class PostgresMigrations(MigrationsBase):
         with self.cursor() as cur:
             cur.execute("""INSERT INTO schemamigration (migration_file) VALUES (%s)""",
                     [migration_file])
-            cur.connection.commit()
 
     def execute_python_migration(self, migration_file, module):
         assert hasattr(module, 'do'), 'Python module must have `do` function accepting ' \
             'database connection'
         module.do(self.conn)
         self._migration_success(migration_file)
+        self.conn.commit()
 
     # https://bitbucket.org/andrewgodwin/south/src/74742a1ba41ce6e9ea56cc694c824b7a93934ac6/south/db/generic.py?at=default
     def _sqlfile_to_statements(self, sql, regex=r"(?mx) ([^';]* (?:'[^']*'[^';]*)*)",
@@ -185,9 +185,12 @@ class PostgresMigrations(MigrationsBase):
     def execute_sql_migration(self, migration_file):
         with open(migration_file) as f:
             content = f.read()
-        with self.cursor() as cur:
-            for statement in self._sqlfile_to_statements(content):
+        for statement in self._sqlfile_to_statements(content):
+            with self.cursor() as cur:
                 cur.execute(statement)
+        self._migration_success(migration_file)
+        self.conn.commit()
+
 
     def dump_schema(self):
         if not self.db_config.get('schema_file'):
