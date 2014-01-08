@@ -274,9 +274,9 @@ def print_new(dbnick, name):
     '''Prints filename of a new migration'''
     opts = ChoosenOptions(dbnick)
     print os.path.join(opts.db_config['migrations_dir'],
-            'm{datestr}__{name}.sql'.format(
-                datestr=datetime.datetime.now().strftime('%y%m%d.%H%M%S'),
-                name=name))
+            'm{datestr}_{name}.sql'.format(
+                datestr=datetime.datetime.now().strftime('%Y%m%d%H%M%S'),
+                name=name.replace(' ', '_')))
 
 @baker.command
 def latest_synced(dbnick):
