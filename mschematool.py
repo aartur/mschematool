@@ -18,10 +18,9 @@ import baker
 
 
 log = logging.getLogger('schematool')
-log.setLevel(logging.DEBUG)
 
 
-DEFAULT_CONFIG_MODULE_NAME = 'config.module'
+DEFAULT_CONFIG_MODULE_NAME = 'mschematool_config'
 
 
 ### Loading configuration
@@ -32,15 +31,17 @@ class _Config(object):
         self._module = None
 
     def setup_pythonpath_for_migrations(self, dbnick):
-        sys.path.append(self.module.DATABASES[dbnick].migrations_dir)
+        sys.path.append(self.module.DATABASES[dbnick]['migrations_dir'])
 
     def _setup_logging(self):
         global log
+        log.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)-15s %(message)s')
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.DEBUG)
+        console_handler = logging.StreamHandler(sys.stderr)
         console_handler.setFormatter(formatter)
-        if not hasattr(self.module, 'LOG_FILE'):
+        console_handler.setLevel(logging.DEBUG)
+        log.addHandler(console_handler)
+        if hasattr(self.module, 'LOG_FILE'):
             file_handler = logging.FileHandler(self.module.LOG_FILE)
             file_handler.setLevel(logging.DEBUG)
             file_handler.setFormatter(formatter)
@@ -97,7 +98,8 @@ class MigrationsBase(object):
 
     def execute_sql_migration(self, migration_file): raise NotImplementedError()
 
-    def execute_migration(self, migration_file):
+    def execute_migration(self, migration_file_relative):
+        migration_file = os.path.join(self.db_config['migrations_dir'], migration_file_relative)
         if migration_file.endswith('.sql'):
             return self.execute_sql_migration(migration_file)
         if migration_file.endswith('.py'):
@@ -142,7 +144,7 @@ class PostgresMigrations(MigrationsBase):
 
     def initialize_db(self):
         with self.cursor() as cur:
-            cur.execute("""CREATE TABLE schema_migration (
+            cur.execute("""CREATE TABLE schemamigration (
                 migration_file TEXT,
                 execution_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )""")
@@ -150,13 +152,13 @@ class PostgresMigrations(MigrationsBase):
 
     def fetch_executed_migrations(self):
         with self.cursor() as cur:
-            cur.execute("""SELECT migration_file FROM schema_migration
+            cur.execute("""SELECT migration_file FROM schemamigration
             ORDER BY execution_time""")
             return [row[0] for row in cur.fetchall()]
 
     def _migration_success(self, migration_file):
         with self.cursor() as cur:
-            cur.execute("""INSERT INTO schema_migration (migration_file) VALUES (%s)""",
+            cur.execute("""INSERT INTO schemamigration (migration_file) VALUES (%s)""",
                     [migration_file])
             cur.connection.commit()
 
@@ -212,6 +214,7 @@ ENGINE_TO_IMPL = {m.engine: m for m in MIGRATIONS_IMPLS}
 class ChoosenOptions(object):
 
     def __init__(self, dbnick):
+        assert dbnick in config.module.DATABASES, 'Not found in DATABASES in config: %s' % dbnick
         self.dbnick = dbnick
         self.db_config = config.module.DATABASES[dbnick]
         self.migrations = ENGINE_TO_IMPL[self.db_config['engine']](self.db_config)
@@ -256,6 +259,7 @@ def sync(dbnick):
         log.info('Executing migration %s', migration_file)
         print 'Executing', migration_file
         opts.migrations.execute_migration(migration_file)
+    opts.migrations.dump_schema()
 
 @baker.command
 def force_sync_single(dbnick, migration_file):
@@ -263,6 +267,7 @@ def force_sync_single(dbnick, migration_file):
     print 'Force executing', migration_file
     log.info('Force executing %s', migration_file)
     opts.migrations.execute_migration(migration_file)
+    opts.migrations.dump_schema()
 
 @baker.command
 def print_new(dbnick, name):
@@ -281,6 +286,11 @@ def latest_synced(dbnick):
         print 'No migrations'
     else:
         print executed[-1]
+
+@baker.command
+def dump_schema(dbnick):
+    opts = ChoosenOptions(dbnick)
+    opts.migrations.dump_schema()
 
 if __name__ == '__main__':
     baker.run()
