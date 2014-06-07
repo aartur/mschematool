@@ -115,6 +115,7 @@ class MigrationsBase(object):
             return self.execute_python_migration(migration_file, module)
         assert False, 'Unknown migration type %s' % migration_file
 
+
     def dump_schema(self): raise NotImplementedError()
 
 
@@ -209,12 +210,6 @@ class PostgresMigrations(MigrationsBase):
 
 #### Migration files repository
 
-def get_all_filenames(base_dir):
-    filenames = glob.glob(os.path.join(base_dir, MIGRATION_PATTERN_SQL)) + \
-        glob.glob(os.path.join(base_dir, MIGRATION_PATTERN_PY))
-    filenames.sort()
-    return filenames
-
 
 #### Parsing options
 
@@ -232,8 +227,21 @@ class RunContext(object):
         self.migrations = ENGINE_TO_IMPL[self.db_config['engine']](self.db_config)
         config.setup_pythonpath_for_migrations(self.dbnick)
 
+    def not_executed_migration_files(self):
+        executed = self.migrations.fetch_executed_migrations()
+        available = self.get_filenames()
+        not_executed = set(available) - set(executed)
+        not_executed = sorted(not_executed)
+        return not_executed
+
+    def _get_all_filenames(self, base_dir):
+        filenames = glob.glob(os.path.join(base_dir, MIGRATION_PATTERN_SQL)) + \
+            glob.glob(os.path.join(base_dir, MIGRATION_PATTERN_PY))
+        filenames.sort()
+        return filenames
+
     def get_filenames(self):
-        return get_all_filenames(self.db_config['migrations_dir'])
+        return self._get_all_filenames(self.db_config['migrations_dir'])
 
 #### Commands
 
@@ -268,24 +276,18 @@ def synced(ctx):
     for migration in migrations:
         click.echo(migration)
 
-def _not_executed_migration_files(opts):
-    executed = opts.migrations.fetch_executed_migrations()
-    available = opts.get_filenames()
-    not_executed = set(available) - set(executed)
-    not_executed = sorted(not_executed)
-    return not_executed
 
 @main.command(help='Show migrations available for syncing.')
 @click.pass_context
 def to_sync(ctx):
-    migrations = _not_executed_migration_files(ctx.obj)
+    migrations = ctx.obj.not_executed_migration_files()
     for migration in migrations:
         click.echo(migration)
 
 @main.command(help='Sync all available migrations.')
 @click.pass_context
 def sync(ctx):
-    for migration_file in _not_executed_migration_files(ctx.obj):
+    for migration_file in ctx.obj.not_executed_migration_files():
         msg = 'Executing migrations %s' % migration_file
         log.info(msg)
         click.echo(msg)
@@ -314,7 +316,7 @@ def print_new(ctx, name):
 
 @main.command(help='Show latest synced migration.')
 @click.pass_context
-def latest_synced(dbnick):
+def latest_synced(ctx):
     migrations = ctx.obj.migrations.fetch_executed_migrations()
     if not migrations:
         click.echo('No synced migrations')
