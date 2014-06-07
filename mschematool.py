@@ -22,6 +22,9 @@ log = logging.getLogger('schematool')
 
 DEFAULT_CONFIG_MODULE_NAME = 'mschematool_config'
 
+MIGRATION_PATTERN_SQL = 'm*.sql'
+MIGRATION_PATTERN_PY = 'm*.py'
+
 
 ### Loading configuration
 
@@ -207,8 +210,8 @@ class PostgresMigrations(MigrationsBase):
 #### Migration files repository
 
 def get_all_filenames(base_dir):
-    filenames = glob.glob(os.path.join(base_dir, 'm*.sql')) + \
-            glob.glob(os.path.join(base_dir, 'm*.py'))
+    filenames = glob.glob(os.path.join(base_dir, MIGRATION_PATTERN_SQL)) + \
+        glob.glob(os.path.join(base_dir, MIGRATION_PATTERN_PY))
     filenames.sort()
     return filenames
 
