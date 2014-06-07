@@ -14,7 +14,7 @@ import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
 
-import baker
+import click
 
 
 log = logging.getLogger('schematool')
@@ -25,9 +25,11 @@ DEFAULT_CONFIG_MODULE_NAME = 'mschematool_config'
 
 ### Loading configuration
 
-class _Config(object):
+class Config(object):
 
-    def __init__(self):
+    def __init__(self, verbose, config_module=None):
+        self.verbose = verbose
+        self.config_module = config_module
         self._module = None
 
     def setup_pythonpath_for_migrations(self, dbnick):
@@ -40,7 +42,8 @@ class _Config(object):
         console_handler = logging.StreamHandler(sys.stderr)
         console_handler.setFormatter(formatter)
         console_handler.setLevel(logging.DEBUG)
-        log.addHandler(console_handler)
+        if self.verbose:
+            log.addHandler(console_handler)
         if hasattr(self.module, 'LOG_FILE'):
             file_handler = logging.FileHandler(self.module.LOG_FILE)
             file_handler.setLevel(logging.DEBUG)
@@ -50,14 +53,18 @@ class _Config(object):
     def _load_config(self):
         if self._module is not None:
             return
+
         module_from_env = os.getenv('MSCHEMATOOL_CONFIG_MODULE')
-        if module_from_env:
+        if self.config_module is not None:
+            module_name = self.config_module
+        elif module_from_env:
             log.info('Importing config module from env. variable MSCHEMATOOL_CONFIG_MODULE: %s',
                     module_from_env)
             module_name = module_from_env
         else:
             log.info('Importing default config module %s', DEFAULT_CONFIG_MODULE_NAME)
             module_name = DEFAULT_CONFIG_MODULE_NAME
+
         try:
             self._module = importlib.import_module(module_name)
         except ImportError:
@@ -65,15 +72,13 @@ class _Config(object):
             sys.stderr.write(msg + '\n')
             log.critical(msg)
             raise
+
         self._setup_logging()
 
     @property
     def module(self):
         self._load_config()
         return self._module
-
-
-config = _Config()
 
 
 ### Utility functions
@@ -214,10 +219,11 @@ MIGRATIONS_IMPLS = [PostgresMigrations]
 ENGINE_TO_IMPL = {m.engine: m for m in MIGRATIONS_IMPLS}
 
 
-class ChoosenOptions(object):
+class RunContext(object):
 
-    def __init__(self, dbnick):
+    def __init__(self, config, dbnick):
         assert dbnick in config.module.DATABASES, 'Not found in DATABASES in config: %s' % dbnick
+        self.config = config
         self.dbnick = dbnick
         self.db_config = config.module.DATABASES[dbnick]
         self.migrations = ENGINE_TO_IMPL[self.db_config['engine']](self.db_config)
@@ -226,20 +232,38 @@ class ChoosenOptions(object):
     def get_filenames(self):
         return get_all_filenames(self.db_config['migrations_dir'])
 
-
 #### Commands
 
-@baker.command
-def initdb(dbnick):
-    opts = ChoosenOptions(dbnick)
-    opts.migrations.initialize_db()
+HELP = """Example usage:
 
+$ ./mschematool.py my_db initdb
 
-@baker.command
-def synced(dbnick):
-    opts = ChoosenOptions(dbnick)
-    print '\n'.join(opts.migrations.fetch_executed_migrations())
+A database nickname defined in the configuration module must be passed as the first argument.
+After it a command must be specified.
 
+"""
+
+@click.group(help=HELP)
+@click.option('--config', type=str, envvar='MSCHEMATOOL', help='Configuration module, e.g. "mypkg.mschematool_config". Environment variable MSCHEMATOOL_CONFIG can be specified instead.')
+@click.option('--verbose', type=bool, default=False, help='Print executed SQL')
+@click.argument('dbnick', type=str)
+@click.pass_context
+def main(ctx, config, verbose, dbnick):
+    config_obj = Config(verbose, config)
+    run_ctx = RunContext(config_obj, dbnick)
+    ctx.obj = run_ctx
+
+@main.command(help='Create tables used for tracking migrations.')
+@click.pass_context
+def initdb(ctx):
+    ctx.obj.migrations.initialize_db()
+
+@main.command(help='Show synced migrations.')
+@click.pass_context
+def synced(ctx):
+    migrations = ctx.obj.migrations.fetch_executed_migrations()
+    for migration in migrations:
+        click.echo(migration)
 
 def _not_executed_migration_files(opts):
     executed = opts.migrations.fetch_executed_migrations()
@@ -248,53 +272,56 @@ def _not_executed_migration_files(opts):
     not_executed = sorted(not_executed)
     return not_executed
 
-@baker.command
-def to_sync(dbnick):
-    opts = ChoosenOptions(dbnick)
-    not_executed = _not_executed_migration_files(opts)
-    print '\n'.join(not_executed)
+@main.command(help='Show migrations available for syncing.')
+@click.pass_context
+def to_sync(ctx):
+    migrations = _not_executed_migration_files(ctx.obj)
+    for migration in migrations:
+        click.echo(migration)
 
+@main.command(help='Sync all available migrations.')
+@click.pass_context
+def sync(ctx):
+    for migration_file in _not_executed_migration_files(ctx.obj):
+        msg = 'Executing migrations %s' % migration_file
+        log.info(msg)
+        click.echo(msg)
+        ctx.obj.migrations.execute_migration(migration_file)
+    ctx.obj.migrations.dump_schema()
 
-@baker.command
-def sync(dbnick):
-    opts = ChoosenOptions(dbnick)
-    for migration_file in _not_executed_migration_files(opts):
-        log.info('Executing migration %s', migration_file)
-        print 'Executing', migration_file
-        opts.migrations.execute_migration(migration_file)
-    opts.migrations.dump_schema()
+@main.command(help='Sync a single migration, without syncing older ones.')
+@click.argument('migration_file', type=str)
+@click.pass_context
+def force_sync_single(ctx, migration_file):
+    msg = 'Force executing %s' % migration_file
+    log.info(msg)
+    click.echo(msg)
+    ctx.obj.migrations.execute_migration(migration_file)
+    ctx.obj.migrations.dump_schema()
 
-@baker.command
-def force_sync_single(dbnick, migration_file):
-    opts = ChoosenOptions(dbnick)
-    print 'Force executing', migration_file
-    log.info('Force executing %s', migration_file)
-    opts.migrations.execute_migration(migration_file)
-    opts.migrations.dump_schema()
-
-@baker.command
-def print_new(dbnick, name):
+@main.command(help='Print a filename for a new migration.')
+@click.argument('name', type=str)
+@click.pass_context
+def print_new(ctx, name):
     '''Prints filename of a new migration'''
-    opts = ChoosenOptions(dbnick)
-    print os.path.join(opts.db_config['migrations_dir'],
+    print os.path.join(ctx.obj.db_config['migrations_dir'],
             'm{datestr}_{name}.sql'.format(
                 datestr=datetime.datetime.now().strftime('%Y%m%d%H%M%S'),
                 name=name.replace(' ', '_')))
 
-@baker.command
+@main.command(help='Show latest synced migration.')
+@click.pass_context
 def latest_synced(dbnick):
-    opts = ChoosenOptions(dbnick)
-    executed = opts.migrations.fetch_executed_migrations()
-    if not executed:
-        print 'No migrations'
+    migrations = ctx.obj.migrations.fetch_executed_migrations()
+    if not migrations:
+        click.echo('No synced migrations')
     else:
-        print executed[-1]
+        click.echo(executed[-1])
 
-@baker.command
 def dump_schema(dbnick):
     opts = ChoosenOptions(dbnick)
     opts.migrations.dump_schema()
 
 if __name__ == '__main__':
-    baker.run()
+    main()
 
