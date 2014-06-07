@@ -2,6 +2,7 @@
 
 import logging
 import glob
+import os
 import os.path
 import sys
 import re
@@ -116,8 +117,6 @@ class MigrationsBase(object):
         assert False, 'Unknown migration type %s' % migration_file
 
 
-    def dump_schema(self): raise NotImplementedError()
-
 
 ## Postgres
 
@@ -201,16 +200,6 @@ class PostgresMigrations(MigrationsBase):
         self.conn.commit()
 
 
-    def dump_schema(self):
-        if not self.db_config.get('schema_file'):
-            return
-        schema = subprocess.check_output(shlex.split(self.db_config['schema_dump_cmd']))
-        with open(self.db_config['schema_file'], 'w') as f:
-            f.write(schema)
-
-#### Migration files repository
-
-
 #### Parsing options
 
 MIGRATIONS_IMPLS = [PostgresMigrations]
@@ -242,6 +231,15 @@ class RunContext(object):
 
     def get_filenames(self):
         return self._get_all_filenames(self.db_config['migrations_dir'])
+
+    def execute_after_sync(self):
+        after_sync = self.db_config.get('after_sync')
+        if not after_sync:
+            return
+        msg = 'Executing after_sync command %r' % after_sync
+        log.info(msg)
+        click.echo(msg)
+        os.system(after_sync)
 
 #### Commands
 
@@ -287,12 +285,16 @@ def to_sync(ctx):
 @main.command(help='Sync all available migrations.')
 @click.pass_context
 def sync(ctx):
-    for migration_file in ctx.obj.not_executed_migration_files():
+    to_execute = ctx.obj.not_executed_migration_files()
+    if not to_execute:
+        click.echo('No migrations to sync')
+        return
+    for migration_file in to_execute:
         msg = 'Executing migrations %s' % migration_file
         log.info(msg)
         click.echo(msg)
         ctx.obj.migrations.execute_migration(migration_file)
-    ctx.obj.migrations.dump_schema()
+    ctx.obj.execute_after_sync()
 
 @main.command(help='Sync a single migration, without syncing older ones.')
 @click.argument('migration_file', type=str)
@@ -302,7 +304,7 @@ def force_sync_single(ctx, migration_file):
     log.info(msg)
     click.echo(msg)
     ctx.obj.migrations.execute_migration(migration_file)
-    ctx.obj.migrations.dump_schema()
+    ctx.obj.execute_after_sync()
 
 @main.command(help='Print a filename for a new migration.')
 @click.argument('name', type=str)
@@ -322,10 +324,6 @@ def latest_synced(ctx):
         click.echo('No synced migrations')
     else:
         click.echo(executed[-1])
-
-def dump_schema(dbnick):
-    opts = ChoosenOptions(dbnick)
-    opts.migrations.dump_schema()
 
 if __name__ == '__main__':
     main()
