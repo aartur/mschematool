@@ -256,7 +256,7 @@ After it a command must be specified.
 
 @click.group(help=HELP)
 @click.option('--config', type=str, envvar='MSCHEMATOOL', help='Configuration module, e.g. "mypkg.mschematool_config". Environment variable MSCHEMATOOL_CONFIG can be specified instead.')
-@click.option('--verbose', type=bool, default=False, help='Print executed SQL')
+@click.option('--verbose/--no-verbose', default=False, help='Print executed SQL? Default: no.')
 @click.argument('dbnick', type=str)
 @click.pass_context
 def main(ctx, config, verbose, dbnick):
@@ -266,7 +266,7 @@ def main(ctx, config, verbose, dbnick):
 
 @main.command(help='Create tables used for tracking migrations.')
 @click.pass_context
-def initdb(ctx):
+def init_db(ctx):
     ctx.obj.migrations.initialize_db()
 
 @main.command(help='Show synced migrations.')
