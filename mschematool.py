@@ -26,6 +26,9 @@ DEFAULT_CONFIG_MODULE_NAME = 'mschematool_config'
 MIGRATION_PATTERN_SQL = 'm*.sql'
 MIGRATION_PATTERN_PY = 'm*.py'
 
+# Look for a config module in cwd also
+sys.path.append(os.getcwd())
+
 
 ### Loading configuration
 
