@@ -43,11 +43,25 @@ class Runner(object):
         self.conn.close()
 
 
-class TestBasic(unittest.TestCase):
+class TestBase(unittest.TestCase):
+    db = 'mtest1'
+    dbnick = 'default'
+    schema_file = '/tmp/mtest1.sql'
 
     def setUp(self):
-        os.system('createdb mtest1')
-        self.r = Runner('config_basic.py', 'default')
+        os.system('createdb %s' % self.db)
+        self.r = Runner('config_basic.py', self.dbnick)
+
+    def tearDown(self):
+        self.r.close()
+        os.system('dropdb %s' % self.db)
+        try:
+            os.unlink(self.schema_file)
+        except OSError:
+            pass
+
+
+class TestBasic(TestBase):
 
     def testInitdb(self):
         self.r.run('init_db')
@@ -84,13 +98,16 @@ class TestBasic(unittest.TestCase):
         out = self.r.run('latest_synced')
         assert out.endswith('m20140615132456_init2.sql')
 
-    def tearDown(self):
-        self.r.close()
-        os.system('dropdb mtest1')
-        try:
-            os.unlink('/tmp/mtest1.sql')
-        except OSError:
-            pass
+
+class TestSpecial(TestBase):
+    dbnick = 'error'
+
+    def testSync(self):
+        self.r.run('init_db')
+        self.r.run('sync')
+        with self.r.cursor() as cur:
+            cur.execute("""SELECT COUNT(*) FROM article""")
+            self.assertEqual(1, cur.fetchone()[0])
 
 
 if __name__ == '__main__':

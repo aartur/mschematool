@@ -168,7 +168,7 @@ class PostgresMigrations(MigrationsBase):
 
     def execute_python_migration(self, migration_file, module):
         assert hasattr(module, 'migrate'), 'Python module must have `migrate` function accepting ' \
-            'database connection'
+            'a database connection'
         module.migrate(self.conn)
         self._migration_success(migration_file)
         self.conn.commit()
@@ -306,7 +306,7 @@ def force_sync_single(ctx, migration_file):
 @click.argument('name', type=str)
 @click.pass_context
 def print_new(ctx, name):
-    '''Prints filename of a new migration'''
+    """Prints filename of a new migration"""
     print os.path.join(ctx.obj.db_config['migrations_dir'],
             'm{datestr}_{name}.sql'.format(
                 datestr=datetime.datetime.now().strftime('%Y%m%d%H%M%S'),
