@@ -1,3 +1,11 @@
+Source code of _sqlfile_to_statements function from mschematool.py is available
+under Apache 2.0 License available here:
+https://bitbucket.org/andrewgodwin/south/src/74742a1ba41ce6e9ea56cc694c824b7a93934ac6/LICENSE?at=default
+
+
+The rest of the code is available under BSD license as put below:
+
+
 Copyright (c) 2014, Artur Siekielski
 All rights reserved.
 
@@ -11,7 +19,7 @@ are permitted provided that the following conditions are met:
   list of conditions and the following disclaimer in the documentation and/or
   other materials provided with the distribution.
 
-* Neither the name of the {organization} nor the names of its
+* Neither the name of the project nor the names of its
   contributors may be used to endorse or promote products derived from
   this software without specific prior written permission.
 
