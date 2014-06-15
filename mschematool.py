@@ -23,10 +23,6 @@ log = logging.getLogger('schematool')
 
 DEFAULT_CONFIG_MODULE_NAME = 'mschematool_config'
 
-MIGRATION_PATTERN_SQL = 'm*.sql'
-MIGRATION_PATTERN_PY = 'm*.py'
-
-
 ### Loading configuration
 
 class Config(object):
@@ -90,7 +86,7 @@ def _simplify_whitespace(s):
 
 #### Database-independent interface for migration-related operations
 
-class MigrationsBase(object):
+class MigrationsExecutor(object):
 
     engine = 'unknown'
 
@@ -136,7 +132,7 @@ class PostgresLoggingDictCursor(psycopg2.extras.DictCursor):
             raise
 
 
-class PostgresMigrations(MigrationsBase):
+class PostgresMigrations(MigrationsExecutor):
 
     engine = 'postgres'
 
@@ -203,7 +199,35 @@ MIGRATIONS_IMPLS = [PostgresMigrations]
 ENGINE_TO_IMPL = {m.engine: m for m in MIGRATIONS_IMPLS}
 
 
-class RunContext(object):
+class MigrationsRepository(object):
+
+    def get_migrations(self, exclude=None):
+        raise NotImplementedError()
+
+
+class DirRepository(MigrationsRepository):
+
+    MIGRATION_PATTERN_SQL = 'm*.sql'
+    MIGRATION_PATTERN_PY = 'm*.py'
+
+    def __init__(self, dir):
+        self.dir = dir
+
+    def _get_all_filenames(self):
+        filenames = glob.glob(os.path.join(self.dir, self.MIGRATION_PATTERN_SQL)) + \
+            glob.glob(os.path.join(self.dir, self.MIGRATION_PATTERN_PY))
+        filenames.sort()
+        return filenames
+
+    def get_migrations(self, exclude=None):
+        filenames = self._get_all_filenames()
+        if exclude:
+            filenames = set(filenames) - set(exclude)
+            filenames = sorted(filenames)
+        return filenames
+
+
+class MSchemaTool(object):
 
     def __init__(self, config, dbnick):
         assert dbnick in config.module.DATABASES, 'Not found in DATABASES in config: %s' % dbnick
@@ -211,22 +235,10 @@ class RunContext(object):
         self.dbnick = dbnick
         self.db_config = config.module.DATABASES[dbnick]
         self.migrations = ENGINE_TO_IMPL[self.db_config['engine']](self.db_config)
+        self.repository = DirRepository(self.db_config['migrations_dir'])
 
     def not_executed_migration_files(self):
-        executed = self.migrations.fetch_executed_migrations()
-        available = self.get_filenames()
-        not_executed = set(available) - set(executed)
-        not_executed = sorted(not_executed)
-        return not_executed
-
-    def _get_all_filenames(self, base_dir):
-        filenames = glob.glob(os.path.join(base_dir, MIGRATION_PATTERN_SQL)) + \
-            glob.glob(os.path.join(base_dir, MIGRATION_PATTERN_PY))
-        filenames.sort()
-        return filenames
-
-    def get_filenames(self):
-        return self._get_all_filenames(self.db_config['migrations_dir'])
+        return self.repository.get_migrations(exclude=self.migrations.fetch_executed_migrations())
 
     def execute_after_sync(self):
         after_sync = self.db_config.get('after_sync')
@@ -255,7 +267,7 @@ After it a command must be specified.
 @click.pass_context
 def main(ctx, config, verbose, dbnick):
     config_obj = Config(verbose, config)
-    run_ctx = RunContext(config_obj, dbnick)
+    run_ctx = MSchemaTool(config_obj, dbnick)
     ctx.obj = run_ctx
 
 @main.command(help='Creates a DB table used for tracking migrations.')
