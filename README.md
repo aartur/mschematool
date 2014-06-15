@@ -49,10 +49,57 @@ $ export MSCHEMATOOL_CONFIG=./config_tutorial.py
 ```
 (again, it's better to use an absoulte path so the `mschematool` command will work from any directory).
 
-Commands
-========
+Doing work
+==========
 Assuming the `mtutorial` database is created, we first need to initialize the database - create table `migration` for storing names of executed migrations.
 ```
 $ mschematool default init_db
 ```
 All commands are specified this way - the first argument is a "dbnick" from a config, the second is an actual command (run `mschematool --help` to see a short summary of commands).
+
+Now given that we have a few migration files:
+```
+$ ls migrations 
+m20140615132455_create_article.sql
+m20140615133521_add_column_author.sql
+m20140615135414_insert_data.py
+
+```
+let's sync them, checking previously that all will be synced using `to_sync`:
+```
+$ mschematool default to_sync
+m20140615132455_create_article.sql
+m20140615133521_add_column_author.sql
+m20140615135414_insert_data.py
+
+$ mschematool default sync   
+Executing m20140615132455_create_article.sql
+Executing m20140615133521_add_column_author.sql
+Executing m20140615135414_insert_data.py
+
+$ mschematool default to_sync
+$
+
+```
+`sync` command executes all migrations that weren't yet executed. For selecting a subset of migrations, the best way is to put migrations (or symlinks to them) in different directories and specify them in a configuration module under different "dbnicks" configs.
+
+To execute a single migration without executing all the other available for syncing, use `force_sync_single`:
+```
+$ mschematool default force_sync_single m20140615132455_create_article.sql
+```
+
+For more fine-grained control, modify `migration` table manually. The content is simple:
+```
+$ psql mtutorial -c 'SELECT * FROM migration'
+                 file                  |          executed          
+---------------------------------------+----------------------------
+ m20140615133521_add_column_author.sql | 2014-06-15 19:19:42.100535
+ m20140615135414_insert_data.py        | 2014-06-15 19:19:42.101006
+(2 rows)
+```
+
+For example, to forget about execution of a given migration, run
+```
+$ psql mtutorial -c "DELETE FROM migration WHERE file like '%insert_data%'"
+DELETE 1
+```
