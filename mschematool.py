@@ -141,6 +141,7 @@ class DirRepository(MigrationsRepository):
 
     def get_migrations(self, exclude=None):
         filenames = self._get_all_filenames()
+        filenames = [os.path.split(fn)[1] for fn in filenames]
         if exclude:
             filenames = set(filenames) - set(exclude)
             filenames = sorted(filenames)
@@ -244,21 +245,22 @@ class PostgresMigrations(MigrationsExecutor):
     def initialize(self):
         with self.cursor() as cur:
             cur.execute("""CREATE TABLE {table} (
-                migration_file TEXT,
-                execution_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                file TEXT,
+                executed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )""".format(table=self.TABLE))
             cur.connection.commit()
 
     def fetch_executed_migrations(self):
         with self.cursor() as cur:
-            cur.execute("""SELECT migration_file FROM {table}
-            ORDER BY execution_time""".format(table=self.TABLE))
+            cur.execute("""SELECT file FROM {table}
+            ORDER BY executed""".format(table=self.TABLE))
             return [row[0] for row in cur.fetchall()]
 
     def _migration_success(self, migration_file):
+        migration = os.path.split(migration_file)[1]
         with self.cursor() as cur:
-            cur.execute("""INSERT INTO {table} (migration_file) VALUES (%s)""".format(table=self.TABLE),
-                    [migration_file])
+            cur.execute("""INSERT INTO {table} (file) VALUES (%s)""".format(table=self.TABLE),
+                    [migration])
 
     def execute_python_migration(self, migration_file, module):
         assert hasattr(module, 'migrate'), 'Python module must have `migrate` function accepting ' \
@@ -324,7 +326,7 @@ class MSchemaTool(object):
 
 HELP = """Example usage:
 
-$ ./mschematool.py my_db initdb
+$ ./mschematool.py default init_db
 
 A database nickname defined in the configuration module must be passed as the first argument.
 After it a command must be specified.
@@ -379,6 +381,9 @@ def sync(ctx):
 @click.argument('migration_file', type=str)
 @click.pass_context
 def force_sync_single(ctx, migration_file):
+    if migration_file in ctx.obj.migrations.fetch_executed_migrations():
+        click.echo('This migration is already executed')
+        return
     msg = 'Force executing %s' % migration_file
     log.info(msg)
     click.echo(msg)
