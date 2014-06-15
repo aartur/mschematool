@@ -1,4 +1,4 @@
-mschematool
+mschematool
 ===========
 
 mschematool is a simple tool for managing database migrations. Migrations are either SQL files or Python modules. They are ordered linearly using just lexicographical ordering of file names (with timestamp being a leading component). Information about executed migrations is stored inside a database for which migrations were executed in a simple table with file names only. The lightweight design enables changing the table contents manually, if necessary, and generally the tool tries to not enforce any hard rules.
@@ -47,7 +47,7 @@ Path to a configuration module can be specified using `--config` option or `MSCH
 ```
 $ export MSCHEMATOOL_CONFIG=./config_tutorial.py
 ```
-(again, it's better to use an absoulte path so the `mschematool` command will work from any directory).
+(again, it's better to use an absolute path so the `mschematool` command will work from any directory).
 
 Doing work
 ==========
@@ -106,9 +106,9 @@ DELETE 1
 
 Migrations
 ==========
-An SQL migration is a file with SQL statements. All the statements are executed within a single database transaction. It means that when one of statements fail, all the changes made by previous statements are ROLLBACKed and a migration isn't recorder as executed.
+An SQL migration is a file with SQL statements. All statements are executed within a single database transaction. It means that when one of statements fail, all the changes made by previous statements are ROLLBACKed and a migration isn't recorder as executed.
 
-A Python migration is a file with `migrate` method that accepts a `connection` object, which is a DBAPI 2.0 connection, which should be used to do necessery work. When an exception does not happen, COMMIT is issued on a connection, so it isn't necessery to call `commit()` inside `migrate()`.
+A Python migration is a file with `migrate` method that accepts a `connection` object, which is a DBAPI 2.0 connection. When an exception does not happen during execution, COMMIT is issued on a connection, so it isn't necessary to call `commit()` inside `migrate()`.
 
 Example content of migration files:
 ```
@@ -133,6 +133,6 @@ Contributing and extending
 ==========================
 Most of the functionality is implemented in subclasses of `MigrationsRepository` and `MigrationsExecutor` in `mschematool.py` file.
 
-`MigrationsRepository` represents a repository of migrations available for execution, with the default implemention `DirRepository`, which is just a directory with files. You might want to extend/reimplement it when you need a smarter mechanism for dealing with sets of migrations.
+`MigrationsRepository` represents a repository of migrations available for execution, with the default implementation `DirRepository`, which is just a directory with files. You might want to extend/reimplement it when you need a smarter mechanism for dealing with sets of migrations.
 
 `MigrationsExecutor` represents a part that deals with executing migrations and storing results in a table. If you want to add support for a new database, you should implement a subclass of this class (see `PostgresMigrations` as an example).
