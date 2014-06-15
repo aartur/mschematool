@@ -81,7 +81,7 @@ $ mschematool default to_sync
 $
 
 ```
-`sync` command executes all migrations that weren't yet executed. For selecting a subset of migrations, the best way is to put migrations (or symlinks to them) in different directories and specify them in a configuration module under different "dbnicks" configs.
+`sync` command executes all migrations that weren't yet executed. For working with subsets of migrations, the best way is to put migrations (or symlinks to them) in different directories and specify them in a configuration module under different "dbnicks" configs.
 
 To execute a single migration without executing all the other available for syncing, use `force_sync_single`:
 ```
@@ -128,3 +128,11 @@ A helper `print_new` command is available for creating new migration files - it 
 $ mschematool default print_new 'more changes'    
 ./migrations/m20140615194820_more_changes.sql
 ```
+
+Contributing and extending
+==========================
+Most of the functionality is implemented in subclasses of `MigrationsRepository` and `MigrationsExecutor` in `mschematool.py` file.
+
+`MigrationsRepository` represents a repository of migrations available for execution, with the default implemention `DirRepository`, which is just a directory with files. You might want to extend/reimplement it when you need a smarter mechanism for dealing with sets of migrations.
+
+`MigrationsExecutor` represents a part that deals with executing migrations and storing results in a table. If you want to add support for a new database, you should implement a subclass of this class (see `PostgresMigrations` as an example).
