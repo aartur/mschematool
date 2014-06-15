@@ -6,7 +6,6 @@ import os
 import os.path
 import sys
 import re
-import importlib
 import shlex
 import subprocess
 import datetime
@@ -36,9 +35,6 @@ class Config(object):
         self.verbose = verbose
         self.config_path = config_path
         self._module = None
-
-    def setup_pythonpath_for_migrations(self, dbnick):
-        sys.path.append(self.module.DATABASES[dbnick]['migrations_dir'])
 
     def _setup_logging(self):
         global log
@@ -113,7 +109,7 @@ class MigrationsBase(object):
         if migration_file.endswith('.sql'):
             return self.execute_sql_migration(migration_file)
         if migration_file.endswith('.py'):
-            module = importlib.import_module(migration_file[:-len('.py')])
+            module = imp.load_source('migration_module', migration_file)
             return self.execute_python_migration(migration_file, module)
         assert False, 'Unknown migration type %s' % migration_file
 
@@ -171,9 +167,9 @@ class PostgresMigrations(MigrationsBase):
                     [migration_file])
 
     def execute_python_migration(self, migration_file, module):
-        assert hasattr(module, 'do'), 'Python module must have `do` function accepting ' \
+        assert hasattr(module, 'migrate'), 'Python module must have `migrate` function accepting ' \
             'database connection'
-        module.do(self.conn)
+        module.migrate(self.conn)
         self._migration_success(migration_file)
         self.conn.commit()
 
@@ -215,7 +211,6 @@ class RunContext(object):
         self.dbnick = dbnick
         self.db_config = config.module.DATABASES[dbnick]
         self.migrations = ENGINE_TO_IMPL[self.db_config['engine']](self.db_config)
-        config.setup_pythonpath_for_migrations(self.dbnick)
 
     def not_executed_migration_files(self):
         executed = self.migrations.fetch_executed_migrations()
@@ -291,7 +286,7 @@ def sync(ctx):
         click.echo('No migrations to sync')
         return
     for migration_file in to_execute:
-        msg = 'Executing migrations %s' % migration_file
+        msg = 'Executing %s' % migration_file
         log.info(msg)
         click.echo(msg)
         ctx.obj.migrations.execute_migration(migration_file)
@@ -324,7 +319,7 @@ def latest_synced(ctx):
     if not migrations:
         click.echo('No synced migrations')
     else:
-        click.echo(executed[-1])
+        click.echo(migrations[-1])
 
 if __name__ == '__main__':
     main()
