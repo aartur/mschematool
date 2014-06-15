@@ -65,7 +65,7 @@ m20140615133521_add_column_author.sql
 m20140615135414_insert_data.py
 
 ```
-let's sync them, checking previously that all will be synced using `to_sync`:
+let's sync them, assuring previously that all will be synced using `to_sync`:
 ```
 $ mschematool default to_sync
 m20140615132455_create_article.sql
@@ -102,4 +102,29 @@ For example, to forget about execution of a given migration, run
 ```
 $ psql mtutorial -c "DELETE FROM migration WHERE file like '%insert_data%'"
 DELETE 1
+```
+
+Migrations
+==========
+An SQL migration is a file with SQL statements. All the statements are executed within a single database transaction. It means that when one of statements fail, all the changes made by previous statements are ROLLBACKed and a migration isn't recorder as executed.
+
+A Python migration is a file with `migrate` method that accepts a `connection` object, which is a DBAPI 2.0 connection, which should be used to do necessery work. When an exception does not happen, COMMIT is issued on a connection, so it isn't necessery to call `commit()` inside `migrate()`.
+
+Example content of migration files:
+```
+$ cat migrations/m20140615132455_create_article.sql
+CREATE TABLE article (id int, body text);
+CREATE INDEX ON article(id);
+
+$ cat migrations/m20140615135414_insert_data.py 
+def migrate(connection):
+    cur = connection.cursor()
+    for i in range(10):
+        cur.execute("""INSERT INTO article (id, body) VALUES (%s, %s)""", [i, str(i)])
+```
+
+A helper `print_new` command is available for creating new migration files - it just prints a migration file name based on a description, using the current date and time as a timestamp:
+```
+$ mschematool default print_new 'more changes'    
+./migrations/m20140615194820_more_changes.sql
 ```
