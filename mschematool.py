@@ -23,11 +23,12 @@ log = logging.getLogger('schematool')
 
 DEFAULT_CONFIG_MODULE_NAME = 'mschematool_config'
 
-### Loading configuration
+
+### Loading and processing configuration
 
 class Config(object):
 
-    def __init__(self, verbose, config_path=None):
+    def __init__(self, verbose, config_path):
         self.verbose = verbose
         self.config_path = config_path
         self._module = None
@@ -51,19 +52,14 @@ class Config(object):
         if self._module is not None:
             return
 
-        path_from_env = os.getenv('MSCHEMATOOL_CONFIG_MODULE')
-        if self.config_path is not None:
-            path = self.config_path
-        elif path_from_env:
-            log.info('Importing config module from env. variable MSCHEMATOOL_CONFIG_MODULE: %s',
-                    path_from_env)
-            path = path_from_env
-        else:
-            log.info('Importing default config module %s', DEFAULT_CONFIG_MODULE_NAME)
-            path = DEFAULT_CONFIG_MODULE_NAME
+        if not os.path.exists(self.config_path):
+            msg = 'Configuration module %r does not exist' % self.config_path
+            sys.stderr.write(msg + '\n')
+            log.critical(msg)
+            raise Exception(msg)
 
         try:
-            self._module = imp.load_source('mschematool_config', path)
+            self._module = imp.load_source('mschematool_config', self.config_path)
         except ImportError:
             msg = 'Cannot import mschematool config module'
             sys.stderr.write(msg + '\n')
@@ -336,7 +332,7 @@ After it a command must be specified.
 """
 
 @click.group(help=HELP)
-@click.option('--config', type=click.Path(exists=True, dir_okay=False), envvar='MSCHEMATOOL', help='Path to configuration module, e.g. "mydir/mschematool_config.py". Environment variable MSCHEMATOOL_CONFIG can be specified instead.')
+@click.option('--config', type=click.Path(exists=True, dir_okay=False), envvar='MSCHEMATOOL_CONFIG', help='Path to configuration module, e.g. "mydir/mschematool_config.py". Environment variable MSCHEMATOOL_CONFIG can be specified instead.', required=True)
 @click.option('--verbose/--no-verbose', default=False, help='Print executed SQL? Default: no.')
 @click.argument('dbnick', type=str)
 @click.pass_context
