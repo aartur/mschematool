@@ -84,27 +84,79 @@ def _simplify_whitespace(s):
     return ' '.join(s.split())
 
 
+#### Migrations repositories
+
+class MigrationsRepository(object):
+    """A repository of migrations is a place where all available migrations are stored
+    (for example a directory with migrations
+    """
+
+    def get_migrations(self, exclude=None):
+        raise NotImplementedError()
+
+    def generate_migration_name(self, name):
+        raise NotImplementedError()
+
+    def migration_type(self, migration):
+        if migration.endswith('.sql'):
+            return 'sql'
+        if migration.endswith('.py'):
+            return 'py'
+        assert False, 'Invalid migration %r' % migration
+
+
+class DirRepository(MigrationsRepository):
+
+    MIGRATION_PATTERN_SQL = 'm*.sql'
+    MIGRATION_PATTERN_PY = 'm*.py'
+
+    def __init__(self, dir):
+        self.dir = dir
+
+    def _get_all_filenames(self):
+        filenames = glob.glob(os.path.join(self.dir, self.MIGRATION_PATTERN_SQL)) + \
+            glob.glob(os.path.join(self.dir, self.MIGRATION_PATTERN_PY))
+        filenames.sort()
+        return filenames
+
+    def get_migrations(self, exclude=None):
+        filenames = self._get_all_filenames()
+        if exclude:
+            filenames = set(filenames) - set(exclude)
+            filenames = sorted(filenames)
+        return filenames
+
+    def generate_migration_name(self, name):
+        return os.path.join(self.dir,
+                            'm{datestr}_{name}.sql'.format(
+                                datestr=datetime.datetime.now().strftime('%Y%m%d%H%M%S'),
+                                name=name.replace(' ', '_')))
+
+
 #### Database-independent interface for migration-related operations
 
 class MigrationsExecutor(object):
 
     engine = 'unknown'
 
-    def __init__(self, db_config): raise NotImplementedError()
+    def __init__(self, db_config, repository):
+        self.db_config = db_config
+        self.repository = repository
 
     def initialize_db(self): raise NotImplementedError()
 
     def fetch_executed_migrations(self): raise NotImplementedError()
 
-    def execute_python_migration(self, migration_file, module): raise NotImplementedError()
+    def execute_python_migration(self, migration, module): raise NotImplementedError()
 
-    def execute_sql_migration(self, migration_file): raise NotImplementedError()
+    def execute_sql_migration(self, migration): raise NotImplementedError()
 
     def execute_migration(self, migration_file_relative):
         migration_file = os.path.join(self.db_config['migrations_dir'], migration_file_relative)
-        if migration_file.endswith('.sql'):
+        m_type = self.repository.migration_type(migration_file)
+        if m_type == 'sql':
             return self.execute_sql_migration(migration_file)
-        if migration_file.endswith('.py'):
+        if m_type == 'py':
             module = imp.load_source('migration_module', migration_file)
             return self.execute_python_migration(migration_file, module)
         assert False, 'Unknown migration type %s' % migration_file
@@ -136,8 +188,8 @@ class PostgresMigrations(MigrationsExecutor):
 
     engine = 'postgres'
 
-    def __init__(self, db_config):
-        self.db_config = db_config
+    def __init__(self, db_config, repository):
+        MigrationsExecutor.__init__(self, db_config, repository)
         self.conn = psycopg2.connect(self.db_config['dsn'])
 
     def cursor(self):
@@ -197,44 +249,6 @@ MIGRATIONS_IMPLS = [PostgresMigrations]
 ENGINE_TO_IMPL = {m.engine: m for m in MIGRATIONS_IMPLS}
 
 
-#### Migrations repository
-
-class MigrationsRepository(object):
-
-    def get_migrations(self, exclude=None):
-        raise NotImplementedError()
-
-    def generate_migration_name(self, name):
-        raise NotImplementedError()
-
-
-class DirRepository(MigrationsRepository):
-
-    MIGRATION_PATTERN_SQL = 'm*.sql'
-    MIGRATION_PATTERN_PY = 'm*.py'
-
-    def __init__(self, dir):
-        self.dir = dir
-
-    def _get_all_filenames(self):
-        filenames = glob.glob(os.path.join(self.dir, self.MIGRATION_PATTERN_SQL)) + \
-            glob.glob(os.path.join(self.dir, self.MIGRATION_PATTERN_PY))
-        filenames.sort()
-        return filenames
-
-    def get_migrations(self, exclude=None):
-        filenames = self._get_all_filenames()
-        if exclude:
-            filenames = set(filenames) - set(exclude)
-            filenames = sorted(filenames)
-        return filenames
-
-    def generate_migration_name(self, name):
-        return os.path.join(self.dir,
-                            'm{datestr}_{name}.sql'.format(
-                                datestr=datetime.datetime.now().strftime('%Y%m%d%H%M%S'),
-                                name=name.replace(' ', '_')))
-
 
 ### Integrating all the classes
 
@@ -245,8 +259,8 @@ class MSchemaTool(object):
         self.config = config
         self.dbnick = dbnick
         self.db_config = config.module.DATABASES[dbnick]
-        self.migrations = ENGINE_TO_IMPL[self.db_config['engine']](self.db_config)
         self.repository = DirRepository(self.db_config['migrations_dir'])
+        self.migrations = ENGINE_TO_IMPL[self.db_config['engine']](self.db_config, self.repository)
 
     def not_executed_migration_files(self):
         return self.repository.get_migrations(exclude=self.migrations.fetch_executed_migrations())
