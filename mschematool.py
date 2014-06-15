@@ -10,6 +10,7 @@ import importlib
 import shlex
 import subprocess
 import datetime
+import imp
 
 import psycopg2
 import psycopg2.extensions
@@ -26,17 +27,14 @@ DEFAULT_CONFIG_MODULE_NAME = 'mschematool_config'
 MIGRATION_PATTERN_SQL = 'm*.sql'
 MIGRATION_PATTERN_PY = 'm*.py'
 
-# Look for a config module in cwd also
-sys.path.append(os.getcwd())
-
 
 ### Loading configuration
 
 class Config(object):
 
-    def __init__(self, verbose, config_module=None):
+    def __init__(self, verbose, config_path=None):
         self.verbose = verbose
-        self.config_module = config_module
+        self.config_path = config_path
         self._module = None
 
     def setup_pythonpath_for_migrations(self, dbnick):
@@ -61,19 +59,19 @@ class Config(object):
         if self._module is not None:
             return
 
-        module_from_env = os.getenv('MSCHEMATOOL_CONFIG_MODULE')
-        if self.config_module is not None:
-            module_name = self.config_module
-        elif module_from_env:
+        path_from_env = os.getenv('MSCHEMATOOL_CONFIG_MODULE')
+        if self.config_path is not None:
+            path = self.config_path
+        elif path_from_env:
             log.info('Importing config module from env. variable MSCHEMATOOL_CONFIG_MODULE: %s',
-                    module_from_env)
-            module_name = module_from_env
+                    path_from_env)
+            path = path_from_env
         else:
             log.info('Importing default config module %s', DEFAULT_CONFIG_MODULE_NAME)
-            module_name = DEFAULT_CONFIG_MODULE_NAME
+            path = DEFAULT_CONFIG_MODULE_NAME
 
         try:
-            self._module = importlib.import_module(module_name)
+            self._module = imp.load_source('mschematool_config', path)
         except ImportError:
             msg = 'Cannot import mschematool config module'
             sys.stderr.write(msg + '\n')
@@ -256,7 +254,7 @@ After it a command must be specified.
 """
 
 @click.group(help=HELP)
-@click.option('--config', type=str, envvar='MSCHEMATOOL', help='Configuration module, e.g. "mypkg.mschematool_config". Environment variable MSCHEMATOOL_CONFIG can be specified instead.')
+@click.option('--config', type=click.Path(exists=True, dir_okay=False), envvar='MSCHEMATOOL', help='Path to configuration module, e.g. "mydir/mschematool_config.py". Environment variable MSCHEMATOOL_CONFIG can be specified instead.')
 @click.option('--verbose/--no-verbose', default=False, help='Print executed SQL? Default: no.')
 @click.argument('dbnick', type=str)
 @click.pass_context
@@ -265,7 +263,7 @@ def main(ctx, config, verbose, dbnick):
     run_ctx = RunContext(config_obj, dbnick)
     ctx.obj = run_ctx
 
-@main.command(help='Create tables used for tracking migrations.')
+@main.command(help='Creates a DB table used for tracking migrations.')
 @click.pass_context
 def init_db(ctx):
     ctx.obj.migrations.initialize_db()
