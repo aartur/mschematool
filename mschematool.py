@@ -193,15 +193,18 @@ class PostgresMigrations(MigrationsExecutor):
         self.conn.commit()
 
 
-#### Parsing options
-
 MIGRATIONS_IMPLS = [PostgresMigrations]
 ENGINE_TO_IMPL = {m.engine: m for m in MIGRATIONS_IMPLS}
 
 
+#### Migrations repository
+
 class MigrationsRepository(object):
 
     def get_migrations(self, exclude=None):
+        raise NotImplementedError()
+
+    def generate_migration_name(self, name):
         raise NotImplementedError()
 
 
@@ -226,6 +229,14 @@ class DirRepository(MigrationsRepository):
             filenames = sorted(filenames)
         return filenames
 
+    def generate_migration_name(self, name):
+        return os.path.join(self.dir,
+                            'm{datestr}_{name}.sql'.format(
+                                datestr=datetime.datetime.now().strftime('%Y%m%d%H%M%S'),
+                                name=name.replace(' ', '_')))
+
+
+### Integrating all the classes
 
 class MSchemaTool(object):
 
@@ -319,10 +330,7 @@ def force_sync_single(ctx, migration_file):
 @click.pass_context
 def print_new(ctx, name):
     """Prints filename of a new migration"""
-    print os.path.join(ctx.obj.db_config['migrations_dir'],
-            'm{datestr}_{name}.sql'.format(
-                datestr=datetime.datetime.now().strftime('%Y%m%d%H%M%S'),
-                name=name.replace(' ', '_')))
+    click.echo(ctx.obj.generate_migration_name(name))
 
 @main.command(help='Show latest synced migration.')
 @click.pass_context
