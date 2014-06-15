@@ -1,5 +1,20 @@
 #!/usr/bin/env python
 
+"""This file contains integration tests. Tests invoke mschematool commands using
+subprocess module and check command output and database contents.
+
+To run it, you need a running PostgreSQL database and commands
+
+$ createdb mtest1
+$ dropdb mtest1
+
+working without additional arguments.
+
+To execute tests, run (CWD must be the directory of this file):
+
+$ ./test_basic.py
+"""
+
 import unittest
 import os
 import shlex
