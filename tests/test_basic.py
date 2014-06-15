@@ -67,7 +67,7 @@ class TestBasic(TestBase):
         self.r.run('init_db')
         with self.r.cursor() as cur:
             cur.execute("""SELECT EXISTS(SELECT * FROM information_schema.tables
-                           WHERE table_name='schemamigration')""")
+                           WHERE table_name='migration')""")
             self.assertTrue(cur.fetchone()[0])
 
     def testToSync(self):

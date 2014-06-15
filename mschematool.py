@@ -236,6 +236,8 @@ class PostgresMigrations(MigrationsExecutor):
 
     engine = 'postgres'
 
+    TABLE = 'migration'
+
     def __init__(self, db_config, repository):
         MigrationsExecutor.__init__(self, db_config, repository)
         self.conn = psycopg2.connect(self.db_config['dsn'])
@@ -245,21 +247,21 @@ class PostgresMigrations(MigrationsExecutor):
 
     def initialize(self):
         with self.cursor() as cur:
-            cur.execute("""CREATE TABLE schemamigration (
+            cur.execute("""CREATE TABLE {table} (
                 migration_file TEXT,
                 execution_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )""")
+            )""".format(table=self.TABLE))
             cur.connection.commit()
 
     def fetch_executed_migrations(self):
         with self.cursor() as cur:
-            cur.execute("""SELECT migration_file FROM schemamigration
-            ORDER BY execution_time""")
+            cur.execute("""SELECT migration_file FROM {table}
+            ORDER BY execution_time""".format(table=self.TABLE))
             return [row[0] for row in cur.fetchall()]
 
     def _migration_success(self, migration_file):
         with self.cursor() as cur:
-            cur.execute("""INSERT INTO schemamigration (migration_file) VALUES (%s)""",
+            cur.execute("""INSERT INTO {table} (migration_file) VALUES (%s)""".format(table=self.TABLE),
                     [migration_file])
 
     def execute_python_migration(self, migration_file, module):
