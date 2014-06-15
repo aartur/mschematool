@@ -100,7 +100,11 @@ class MigrationsRepository(object):
         raise NotImplementedError()
 
     def generate_migration_name(self, name, type='sql'):
-        """
+        """Returns a name of a new migration. It will usually be a filename with
+        a valid and unique name.
+
+        :param name: human-readable name of a migration
+        :param type: 'sql' or 'py'
         """
         return os.path.join(self.dir,
                             'm{datestr}_{name}.{type}'.format(
@@ -109,6 +113,10 @@ class MigrationsRepository(object):
                                 type=type))
 
     def migration_type(self, migration):
+        """Recognize migration type based on a migration (usually a filename).
+
+        :return: 'sql' or 'py'
+        """
         if migration.endswith('.sql'):
             return 'sql'
         if migration.endswith('.py'):
@@ -117,6 +125,11 @@ class MigrationsRepository(object):
 
 
 class DirRepository(MigrationsRepository):
+    """:class:`MigrationsRepository` implementation with migrations being files
+    inside a directory ``dir``. Example filenames:
+    - m20140615132455_init.sql
+    - m20140615135414_insert3.py
+    """
 
     MIGRATION_PATTERN_SQL = 'm*.sql'
     MIGRATION_PATTERN_PY = 'm*.py'
@@ -140,6 +153,16 @@ class DirRepository(MigrationsRepository):
 #### Database-independent interface for migration-related operations
 
 class MigrationsExecutor(object):
+    """A class that executes migrations and stores information about execution.
+    It will usually store this information inside a database for which migrations
+    are tracked.
+
+    :attr:`MigrationsExecutor.engine` is an engine name that can be referenced from
+    a config module.
+
+    :param db_config: a dictionary with configuration for a single dbnick.
+    :patam repository: :class:`MigrationsRepository` implementation.
+    """
 
     engine = 'unknown'
 
@@ -147,15 +170,36 @@ class MigrationsExecutor(object):
         self.db_config = db_config
         self.repository = repository
 
-    def initialize_db(self): raise NotImplementedError()
+    def initialize(self):
+        """Initialize resources needed for tracking migrations. It will usually
+        create a database table for storing information about executed migrations.
+        """
+        raise NotImplementedError()
 
-    def fetch_executed_migrations(self): raise NotImplementedError()
+    def fetch_executed_migrations(self):
+        """Return a list of executed migrations (filenames).
+        """
+        raise NotImplementedError()
 
-    def execute_python_migration(self, migration, module): raise NotImplementedError()
+    def execute_python_migration(self, migration, module):
+        """Execute a single Python migration and store information about it.
 
-    def execute_sql_migration(self, migration): raise NotImplementedError()
+        :param migration: migration (filename) to be executed
+        :param module: Python module imported from the migration
+        """
+        raise NotImplementedError()
+
+    def execute_sql_migration(self, migration):
+        """Execute SQL migration from an SQL file.
+
+        :param migration: migration (filename) to be executed
+        """
+        raise NotImplementedError()
 
     def execute_migration(self, migration_file_relative):
+        """This recognizes migration type and executes either
+        :method:`execute_python_migration` or :method:`execute_sql_migration`
+        """
         migration_file = os.path.join(self.db_config['migrations_dir'], migration_file_relative)
         m_type = self.repository.migration_type(migration_file)
         if m_type == 'sql':
@@ -170,7 +214,7 @@ class MigrationsExecutor(object):
 ## Postgres
 
 class PostgresLoggingDictCursor(psycopg2.extras.DictCursor):
-    """Log all SQL executed in the database.
+    """Postgres cursor subclass: log all SQL executed in the database.
     """
 
     def __init__(self, *args, **kwargs):
@@ -199,7 +243,7 @@ class PostgresMigrations(MigrationsExecutor):
     def cursor(self):
         return self.conn.cursor(cursor_factory=PostgresLoggingDictCursor)
 
-    def initialize_db(self):
+    def initialize(self):
         with self.cursor() as cur:
             cur.execute("""CREATE TABLE schemamigration (
                 migration_file TEXT,
@@ -302,7 +346,7 @@ def main(ctx, config, verbose, dbnick):
 @main.command(help='Creates a DB table used for tracking migrations.')
 @click.pass_context
 def init_db(ctx):
-    ctx.obj.migrations.initialize_db()
+    ctx.obj.migrations.initialize()
 
 @main.command(help='Show synced migrations.')
 @click.pass_context
