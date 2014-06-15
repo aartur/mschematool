@@ -12,8 +12,8 @@ The tool is available as a Python package, so the simplest method to install it 
 $ pip install mschematool
 ```
 
-Tutorial
-========
+Configuration
+=============
 Configuration file is a Python module listing available database and migration files locations:
 
 ```
@@ -49,6 +49,8 @@ $ export MSCHEMATOOL_CONFIG=./config_tutorial.py
 ```
 (again, it's better to use an absoulte path so the `mschematool` command will work from any directory).
 
+Commands
+========
 Assuming the `mtutorial` database is created, we first need to initialize the database - create table `migration` for storing names of executed migrations.
 ```
 $ mschematool default init_db
