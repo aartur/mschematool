@@ -88,14 +88,25 @@ def _simplify_whitespace(s):
 
 class MigrationsRepository(object):
     """A repository of migrations is a place where all available migrations are stored
-    (for example a directory with migrations
+    (for example a directory with migrations as files).
     """
 
     def get_migrations(self, exclude=None):
+        """Return a list of all migrations. In a common case a migration will be a filename,
+        without a leading directory part.
+
+        :param exclude: a list or set of migrations to exclude from the result
+        """
         raise NotImplementedError()
 
-    def generate_migration_name(self, name):
-        raise NotImplementedError()
+    def generate_migration_name(self, name, type='sql'):
+        """
+        """
+        return os.path.join(self.dir,
+                            'm{datestr}_{name}.{type}'.format(
+                                datestr=datetime.datetime.now().strftime('%Y%m%d%H%M%S'),
+                                name=name.replace(' ', '_'),
+                                type=type))
 
     def migration_type(self, migration):
         if migration.endswith('.sql'):
@@ -125,13 +136,6 @@ class DirRepository(MigrationsRepository):
             filenames = set(filenames) - set(exclude)
             filenames = sorted(filenames)
         return filenames
-
-    def generate_migration_name(self, name):
-        return os.path.join(self.dir,
-                            'm{datestr}_{name}.sql'.format(
-                                datestr=datetime.datetime.now().strftime('%Y%m%d%H%M%S'),
-                                name=name.replace(' ', '_')))
-
 
 #### Database-independent interface for migration-related operations
 
@@ -341,10 +345,11 @@ def force_sync_single(ctx, migration_file):
 
 @main.command(help='Print a filename for a new migration.')
 @click.argument('name', type=str)
+@click.argument('migration_type', type=click.Choice(['sql', 'py']), default='sql')
 @click.pass_context
-def print_new(ctx, name):
+def print_new(ctx, name, migration_type):
     """Prints filename of a new migration"""
-    click.echo(ctx.obj.generate_migration_name(name))
+    click.echo(ctx.obj.repository.generate_migration_name(name, migration_type))
 
 @main.command(help='Show latest synced migration.')
 @click.pass_context

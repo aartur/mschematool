@@ -98,6 +98,16 @@ class TestBasic(TestBase):
         out = self.r.run('latest_synced')
         assert out.endswith('m20140615132456_init2.sql')
 
+    def testPrintNew(self):
+        self.r.run('init_db')
+        out = self.r.run('print_new xxx')
+        assert out.endswith('_xxx.sql'), out
+
+    def testPrintNewPy(self):
+        self.r.run('init_db')
+        out = self.r.run('print_new xxx py')
+        assert out.endswith('_xxx.py'), out
+
 
 class TestSpecial(TestBase):
     dbnick = 'error'
