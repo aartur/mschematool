@@ -95,29 +95,27 @@ class MigrationsRepository(object):
         """
         raise NotImplementedError()
 
-    def generate_migration_name(self, name, type='sql'):
+    def generate_migration_name(self, name, suffix):
         """Returns a name of a new migration. It will usually be a filename with
         a valid and unique name.
 
         :param name: human-readable name of a migration
-        :param type: 'sql' or 'py'
+        :param suffix: file suffix (extension) - eg. 'sql'
         """
         return os.path.join(self.dir,
-                            'm{datestr}_{name}.{type}'.format(
+                            'm{datestr}_{name}.{suffix}'.format(
                                 datestr=datetime.datetime.now().strftime('%Y%m%d%H%M%S'),
                                 name=name.replace(' ', '_'),
-                                type=type))
+                                suffix=suffix))
 
     def migration_type(self, migration):
         """Recognize migration type based on a migration (usually a filename).
 
-        :return: 'sql' or 'py'
+        :return: 'native' or 'py'
         """
-        if migration.endswith('.sql'):
-            return 'sql'
         if migration.endswith('.py'):
             return 'py'
-        assert False, 'Invalid migration %r' % migration
+        return 'native'
 
 
 class DirRepository(MigrationsRepository):
@@ -125,18 +123,22 @@ class DirRepository(MigrationsRepository):
     inside a directory ``dir``. Example filenames:
     - m20140615132455_init.sql
     - m20140615135414_insert3.py
+
+    :param migration_patterns: a list of glob expressions for selecting valid
+        migration filenames, relative to ``dir``.
     """
 
-    MIGRATION_PATTERN_SQL = 'm*.sql'
-    MIGRATION_PATTERN_PY = 'm*.py'
-
-    def __init__(self, dir):
+    def __init__(self, dir, migration_patterns):
         self.dir = dir
+        self.migration_patterns = migration_patterns
 
     def _get_all_filenames(self):
-        filenames = glob.glob(os.path.join(self.dir, self.MIGRATION_PATTERN_SQL)) + \
-            glob.glob(os.path.join(self.dir, self.MIGRATION_PATTERN_PY))
-        filenames.sort()
+        filenames = []
+        for pattern in self.migration_patterns:
+            migrations = glob.glob(os.path.join(self.dir, pattern))
+            # lexicographical ordering
+            migrations.sort()
+            filenames.extend(migrations)
         return filenames
 
     def get_migrations(self, exclude=None):
@@ -155,13 +157,16 @@ class MigrationsExecutor(object):
     are tracked.
 
     :attr:`MigrationsExecutor.engine` is an engine name that can be referenced from
-    a config module.
+        a config module.
+    :attr:`MigrationsExecutor.patterns` is a list of filename glob patterns
+        specifying files which execution is supported.
 
     :param db_config: a dictionary with configuration for a single dbnick.
     :patam repository: :class:`MigrationsRepository` implementation.
     """
 
     engine = 'unknown'
+    patterns = []
 
     def __init__(self, db_config, repository):
         self.db_config = db_config
@@ -179,15 +184,16 @@ class MigrationsExecutor(object):
         raise NotImplementedError()
 
     def execute_python_migration(self, migration, module):
-        """Execute a single Python migration and store information about it.
+        """Execute a migration written as Python code, and store information about it.
 
         :param migration: migration (filename) to be executed
         :param module: Python module imported from the migration
         """
         raise NotImplementedError()
 
-    def execute_sql_migration(self, migration):
-        """Execute SQL migration from an SQL file.
+    def execute_native_migration(self, migration):
+        """Execute a migration in a format native to the DB (SQL file, CQL file etc.),
+        and store information about it.
 
         :param migration: migration (filename) to be executed
         """
@@ -195,12 +201,12 @@ class MigrationsExecutor(object):
 
     def execute_migration(self, migration_file_relative):
         """This recognizes migration type and executes either
-        :method:`execute_python_migration` or :method:`execute_sql_migration`
+        :method:`execute_python_migration` or :method:`execute_native_migration`
         """
         migration_file = os.path.join(self.db_config['migrations_dir'], migration_file_relative)
         m_type = self.repository.migration_type(migration_file)
-        if m_type == 'sql':
-            return self.execute_sql_migration(migration_file)
+        if m_type == 'native':
+            return self.execute_native_migration(migration_file)
         if m_type == 'py':
             module = imp.load_source('migration_module', migration_file)
             return self.execute_python_migration(migration_file, module)
@@ -232,6 +238,8 @@ class PostgresLoggingDictCursor(psycopg2.extras.DictCursor):
 class PostgresMigrations(MigrationsExecutor):
 
     engine = 'postgres'
+
+    patterns = ['m*.sql', 'm*.py']
 
     TABLE = 'migration'
 
@@ -283,7 +291,7 @@ class PostgresMigrations(MigrationsExecutor):
         # Now execute each statement
         return re.split(regex, sql)[1:][::2]
 
-    def execute_sql_migration(self, migration_file):
+    def execute_native_migration(self, migration_file):
         with open(migration_file) as f:
             content = f.read()
         for statement in self._sqlfile_to_statements(content):
@@ -303,12 +311,15 @@ ENGINE_TO_IMPL = {m.engine: m for m in MIGRATIONS_IMPLS}
 class MSchemaTool(object):
 
     def __init__(self, config, dbnick):
-        assert dbnick in config.module.DATABASES, 'Not found in DATABASES in config: %s' % dbnick
         self.config = config
         self.dbnick = dbnick
+        assert dbnick in config.module.DATABASES, 'Not found in DATABASES in config: %s' % dbnick
         self.db_config = config.module.DATABASES[dbnick]
-        self.repository = DirRepository(self.db_config['migrations_dir'])
-        self.migrations = ENGINE_TO_IMPL[self.db_config['engine']](self.db_config, self.repository)
+        assert 'engine' in self.db_config and self.db_config['engine'] in ENGINE_TO_IMPL, \
+            'Unknown or invalid engine specified, choose one of %s' % ENGINE_TO_IMPL.keys()
+        engine_cls = ENGINE_TO_IMPL[self.db_config['engine']]
+        self.repository = DirRepository(self.db_config['migrations_dir'], engine_cls.patterns)
+        self.migrations = engine_cls(self.db_config, self.repository)
 
     def not_executed_migration_files(self):
         return self.repository.get_migrations(exclude=self.migrations.fetch_executed_migrations())
@@ -392,7 +403,7 @@ def force_sync_single(ctx, migration_file):
 
 @main.command(help='Print a filename for a new migration.')
 @click.argument('name', type=str)
-@click.argument('migration_type', type=click.Choice(['sql', 'py']), default='sql')
+@click.argument('migration_type', type=click.Choice(['sql', 'cql', 'py']), default='sql')
 @click.pass_context
 def print_new(ctx, name, migration_type):
     """Prints filename of a new migration"""
