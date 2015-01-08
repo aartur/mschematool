@@ -10,6 +10,7 @@ import shlex
 import subprocess
 import datetime
 import imp
+import warnings
 
 import psycopg2
 import psycopg2.extensions
@@ -22,6 +23,10 @@ log = logging.getLogger('schematool')
 
 
 DEFAULT_CONFIG_MODULE_NAME = 'mschematool_config'
+
+# Ignore warnings about installation of optimized versions
+# of packages - irrelevant for the use case.
+warnings.filterwarnings("ignore")
 
 
 ### Loading and processing configuration
@@ -301,7 +306,60 @@ class PostgresMigrations(MigrationsExecutor):
         self.conn.commit()
 
 
-MIGRATIONS_IMPLS = [PostgresMigrations]
+### Cassandra
+
+class CassandraMigrations(MigrationsExecutor):
+
+    engine = 'cassandra'
+
+    patterns = ['m*.cql', 'm*.py']
+
+    TABLE = 'migration'
+
+    def __init__(self, db_config, repository):
+        MigrationsExecutor.__init__(self, db_config, repository)
+        import cassandra.cluster
+        self.cluster = cassandra.cluster.Cluster(**self.db_config['cluster_kwargs'])
+
+    def _session(self):
+        return self.cluster.connect(self.db_config['keyspace'])
+
+    def initialize(self):
+        session = self._session()
+        session.execute("""CREATE TABLE IF NOT EXISTS {table} (
+            file text,
+            executed timestamp,
+            PRIMARY KEY (file))
+            """.format(table=self.TABLE))
+
+    def fetch_executed_migrations(self):
+        session = self._session()
+        rows = session.execute("""SELECT file FROM {table}""".format(table=self.TABLE))
+        rows.sort(key=lambda row: row.executed)
+        return [row.file for row in rows]
+
+    def _migration_success(self, migration_file):
+        migration = os.path.split(migration_file)[1]
+        session = self._session()
+        session.execute("""INSERT INTO {table} (file) VALUES (%s)""".format(table=self.TABLE),
+                    [migration])
+
+    def execute_python_migration(self, migration_file, module):
+        assert hasattr(module, 'migrate'), 'Python module must have `migrate` function accepting ' \
+            'a Cluster object'
+        module.migrate(self.cluster)
+        self._migration_success(migration_file)
+
+    def execute_native_migration(self, migration_file):
+        with open(migration_file) as f:
+            content = f.read()
+        session = self._session()
+        for statement in _sqlfile_to_statements(content):
+            session.execute(statement)
+        self._migration_success(migration_file)
+
+
+MIGRATIONS_IMPLS = [PostgresMigrations, CassandraMigrations]
 ENGINE_TO_IMPL = {m.engine: m for m in MIGRATIONS_IMPLS}
 
 
