@@ -79,6 +79,20 @@ class Config(object):
 def _simplify_whitespace(s):
     return ' '.join(s.split())
 
+# Taken from https://bitbucket.org/andrewgodwin/south/src/74742a1ba41ce6e9ea56cc694c824b7a93934ac6/south/db/generic.py?at=default
+def _sqlfile_to_statements(sql, regex=r"(?mx) ([^';]* (?:'[^']*'[^';]*)*)",
+        comment_regex=r"(?mx) (?:^\s*$)|(?:--.*$)"):
+    """
+    Takes a SQL file and executes it as many separate statements.
+    (Some backends, such as Postgres, don't work otherwise.)
+    """
+    # Be warned: This function is full of dark magic. Make sure you really
+    # know regexes before trying to edit it.
+    # First, strip comments
+    sql = "\n".join([x.strip().replace("%", "%%") for x in re.split(comment_regex, sql) if x.strip()])
+    # Now execute each statement
+    return re.split(regex, sql)[1:][::2]
+
 
 #### Migrations repositories
 
@@ -277,24 +291,10 @@ class PostgresMigrations(MigrationsExecutor):
         self._migration_success(migration_file)
         self.conn.commit()
 
-    # https://bitbucket.org/andrewgodwin/south/src/74742a1ba41ce6e9ea56cc694c824b7a93934ac6/south/db/generic.py?at=default
-    def _sqlfile_to_statements(self, sql, regex=r"(?mx) ([^';]* (?:'[^']*'[^';]*)*)",
-            comment_regex=r"(?mx) (?:^\s*$)|(?:--.*$)"):
-        """
-        Takes a SQL file and executes it as many separate statements.
-        (Some backends, such as Postgres, don't work otherwise.)
-        """
-        # Be warned: This function is full of dark magic. Make sure you really
-        # know regexes before trying to edit it.
-        # First, strip comments
-        sql = "\n".join([x.strip().replace("%", "%%") for x in re.split(comment_regex, sql) if x.strip()])
-        # Now execute each statement
-        return re.split(regex, sql)[1:][::2]
-
     def execute_native_migration(self, migration_file):
         with open(migration_file) as f:
             content = f.read()
-        for statement in self._sqlfile_to_statements(content):
+        for statement in _sqlfile_to_statements(content):
             with self.cursor() as cur:
                 cur.execute(statement)
         self._migration_success(migration_file)
