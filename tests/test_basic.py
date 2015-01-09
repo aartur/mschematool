@@ -30,14 +30,12 @@ import psycopg2.extras
 sys.path.append('.')
 
 
-class Runner(object):
+class RunnerBase(object):
 
     def __init__(self, config, dbnick):
         self.config = config
         self.dbnick = dbnick
-
         self.config_module = imp.load_source('mschematool_config', self.config)
-        self.conn = psycopg2.connect(self.config_module.DATABASES[self.dbnick]['dsn'])
 
     def run(self, cmd):
         full_cmd = '../mschematool.py --config {self.config} {self.dbnick} {cmd}'.format(self=self,
@@ -51,6 +49,16 @@ class Runner(object):
         sys.stderr.write(out)
         return out.strip()
 
+    def close(self):
+        pass
+
+
+class RunnerPostgres(RunnerBase):
+
+    def __init__(self, config, dbnick):
+        RunnerBase.__init__(self, config, dbnick)
+        self.conn = psycopg2.connect(self.config_module.DATABASES[self.dbnick]['dsn'])
+
     def cursor(self):
         return self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
@@ -58,14 +66,14 @@ class Runner(object):
         self.conn.close()
 
 
-class TestBase(unittest.TestCase):
+class PostgresTestBase(unittest.TestCase):
     db = 'mtest1'
     dbnick = 'default'
     schema_file = '/tmp/mtest1.sql'
 
     def setUp(self):
         os.system('createdb %s' % self.db)
-        self.r = Runner('config_basic.py', self.dbnick)
+        self.r = RunnerPostgres('config_basic.py', self.dbnick)
 
     def tearDown(self):
         self.r.close()
@@ -76,7 +84,7 @@ class TestBase(unittest.TestCase):
             pass
 
 
-class TestBasic(TestBase):
+class PostgresTestBasic(PostgresTestBase):
 
     def testInitdb(self):
         self.r.run('init_db')
@@ -124,7 +132,7 @@ class TestBasic(TestBase):
         assert out.endswith('_xxx.py'), out
 
 
-class TestSpecial(TestBase):
+class PostgresTestSpecial(PostgresTestBase):
     dbnick = 'error'
 
     def testSync(self):
