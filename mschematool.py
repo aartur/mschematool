@@ -11,6 +11,7 @@ import subprocess
 import datetime
 import imp
 import warnings
+import traceback
 
 import psycopg2
 import psycopg2.extensions
@@ -83,6 +84,10 @@ class Config(object):
 
 def _simplify_whitespace(s):
     return ' '.join(s.split())
+
+def _assert_values_exist(d, *keys):
+    for k in keys:
+        assert d.get(k), 'No required value %r specified'
 
 # Taken from https://bitbucket.org/andrewgodwin/south/src/74742a1ba41ce6e9ea56cc694c824b7a93934ac6/south/db/generic.py?at=default
 def _sqlfile_to_statements(sql, regex=r"(?mx) ([^';]* (?:'[^']*'[^';]*)*)",
@@ -243,7 +248,6 @@ class PostgresLoggingDictCursor(psycopg2.extras.DictCursor):
         psycopg2.extras.DictCursor.__init__(self, *args, **kwargs)
 
     def execute(self, sql, args=None):
-        global log
         if log.isEnabledFor(logging.INFO):
             realsql = self.mogrify(sql, args)
             log.info('Executing SQL: <<%s>>', _simplify_whitespace(realsql))
@@ -318,6 +322,23 @@ class CassandraMigrations(MigrationsExecutor):
 
     def __init__(self, db_config, repository):
         MigrationsExecutor.__init__(self, db_config, repository)
+
+        _assert_values_exist(db_config, 'cqlsh_path', 'pylib_path', 'keyspace', 'cluster_kwargs')
+
+        if db_config['pylib_path'] not in sys.path:
+            sys.path.append(db_config['pylib_path'])
+
+        # Import cqlsh script as a module. Clear sys.argv when doing it to prevent
+        # the script from parsing our command line.
+        orig_sys_argv = sys.argv
+        sys.argv = [db_config['cqlsh_path']]
+        imp.load_source('cqlsh', db_config['cqlsh_path'])
+        import cqlsh
+        sys.argv = orig_sys_argv
+
+        from cqlshlib import cql3handling
+        cqlsh.setup_cqlruleset(cql3handling)
+        
         import cassandra.cluster
         self.cluster = cassandra.cluster.Cluster(**self.db_config['cluster_kwargs'])
 
@@ -334,15 +355,16 @@ class CassandraMigrations(MigrationsExecutor):
 
     def fetch_executed_migrations(self):
         session = self._session()
-        rows = session.execute("""SELECT file FROM {table}""".format(table=self.TABLE))
+        rows = session.execute("""SELECT file, executed FROM {table}""".format(table=self.TABLE))
         rows.sort(key=lambda row: row.executed)
         return [row.file for row in rows]
 
     def _migration_success(self, migration_file):
         migration = os.path.split(migration_file)[1]
         session = self._session()
-        session.execute("""INSERT INTO {table} (file) VALUES (%s)""".format(table=self.TABLE),
-                    [migration])
+        session.execute("""INSERT INTO {table} (file, executed) VALUES (%s, %s)""".\
+                        format(table=self.TABLE),
+                        [migration, datetime.datetime.now()])
 
     def execute_python_migration(self, migration_file, module):
         assert hasattr(module, 'migrate'), 'Python module must have `migrate` function accepting ' \
@@ -351,11 +373,34 @@ class CassandraMigrations(MigrationsExecutor):
         self._migration_success(migration_file)
 
     def execute_native_migration(self, migration_file):
+        import cqlsh
+        import cassandra.protocol
+
         with open(migration_file) as f:
             content = f.read()
+        statements, _ = cqlsh.cqlruleset.cql_split_statements(content)
+        to_execute = []
+        for statement in statements:
+            if not statement:
+                continue
+            _, _, (start, _) = statement[0]
+            _, _, (_, end) = statement[-1]
+            extracted = content[start:end]
+            if not extracted:
+                continue
+            to_execute.append(extracted)
         session = self._session()
-        for statement in _sqlfile_to_statements(content):
-            session.execute(statement)
+        for statement in to_execute:
+            log.info('Executing CQL: <<%s>>', _simplify_whitespace(statement))
+            try:
+                session.execute(statement)
+            except cassandra.protocol.ErrorMessage as e:
+                click.echo('Error while executing statement %r' % statement)
+                sys.stderr.write(repr(e))
+                return
+            except:
+                log.exception('While executing statement %r', statement)
+                raise
         self._migration_success(migration_file)
 
 

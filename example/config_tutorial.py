@@ -13,8 +13,10 @@ DATABASES = {
         },
 
         'cass': {
-            'migrations_dir': './migrations_cass/',
+            'migrations_dir': './tests/cass1',
             'engine': 'cassandra',
+            'cqlsh_path': '/opt/cassandra/bin/cqlsh',
+            'pylib_path': '/opt/cassandra/pylib',
             'keyspace': 'migrations',
             'cluster_kwargs': {
                 'contact_points': ['127.0.0.1'],
