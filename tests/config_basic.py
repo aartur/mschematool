@@ -15,6 +15,18 @@ DATABASES = {
             'engine': 'postgres',
             'dsn': 'host=127.0.0.1 dbname=mtest1',
         },
+
+        'cass_default': {
+            'migrations_dir': os.path.join(BASE_DIR, 'cass1'),
+            'engine': 'cassandra',
+            'cqlsh_path': '/opt/cassandra/bin/cqlsh',
+            'pylib_path': '/opt/cassandra/pylib',
+            'keyspace': 'migrations',
+            'cluster_kwargs': {
+                'contact_points': ['127.0.0.1'],
+                'port': 9042,
+            },
+        }
 }
 
 LOG_FILE = '/tmp/mtest1.log'

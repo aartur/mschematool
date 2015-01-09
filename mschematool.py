@@ -396,7 +396,7 @@ class CassandraMigrations(MigrationsExecutor):
                 session.execute(statement)
             except cassandra.protocol.ErrorMessage as e:
                 click.echo('Error while executing statement %r' % statement)
-                sys.stderr.write(repr(e))
+                click.echo(repr(e))
                 return
             except:
                 log.exception('While executing statement %r', statement)

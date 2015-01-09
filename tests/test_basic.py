@@ -66,6 +66,33 @@ class RunnerPostgres(RunnerBase):
         self.conn.close()
 
 
+class RunnerCassandra(RunnerBase):
+
+    def __init__(self, config, dbnick):
+        import cassandra.cluster
+
+        RunnerBase.__init__(self, config, dbnick)
+
+        assert self.config_module.DATABASES[dbnick]['engine'] == 'cassandra'
+        self.cluster = cassandra.cluster.Cluster(**self.config_module.DATABASES[self.dbnick]\
+                                                 ['cluster_kwargs'])
+        self.keyspace = self.config_module.DATABASES[self.dbnick]['keyspace']
+        s = self.cluster.connect()
+        s.execute("""CREATE KEYSPACE IF NOT EXISTS {keyspace} WITH REPLICATION = {{ 'class' : 'SimpleStrategy', 'replication_factor' : 1 }}""".format(keyspace=self.keyspace))
+        s.shutdown()
+
+    def session(self):
+        s = self.cluster.connect()
+        return s
+
+    def close(self):
+        self.cluster.shutdown()
+
+
+
+### Postgres tests
+
+
 class PostgresTestBase(unittest.TestCase):
     db = 'mtest1'
     dbnick = 'default'
@@ -141,6 +168,61 @@ class PostgresTestSpecial(PostgresTestBase):
         with self.r.cursor() as cur:
             cur.execute("""SELECT COUNT(*) FROM article""")
             self.assertEqual(1, cur.fetchone()[0])
+
+
+### Cassandra tests
+
+
+class CassandraTestBasic(PostgresTestBase):
+
+    def setUp(self):
+        self.r = RunnerCassandra('config_basic.py', 'cass_default')
+
+    def tearDown(self):
+        s = self.r.session()
+        s.execute("""DROP KEYSPACE IF EXISTS migrations""")
+        s.execute("""DROP KEYSPACE IF EXISTS mtest""")
+        self.r.close()
+
+    def testInitdb(self):
+        self.r.run('init_db')
+        s = self.r.session()
+        rows = s.execute("""SELECT columnfamily_name FROM system.schema_columnfamilies
+            WHERE columnfamily_name=%s AND keyspace_name=%s""", ['migration', 'migrations'])
+        self.assertEqual(1, len(rows))
+
+    def testToSync(self):
+        self.r.run('init_db')
+        out = self.r.run('to_sync')
+        self.assertEqual(5, len(out.split('\n')))
+
+    def testSync(self):
+        self.r.run('init_db')
+        self.r.run('sync')
+        s = self.r.session()
+        rows = s.execute("""SELECT COUNT(*) FROM mtest.article""")
+        self.assertEqual(4, rows[0].count)
+
+    def testLatestSynced(self):
+        self.r.run('init_db')
+        self.r.run('sync')
+        out = self.r.run('latest_synced')
+        assert out.endswith('m20140615135414_insert3.py')
+
+    def testForceSyncSingle(self):
+        self.r.run('init_db')
+        self.r.run('force_sync_single m20140615132456_init2.cql')
+
+        out = self.r.run('synced')
+        self.assertEqual(1, len(out.split('\n')))
+
+        out = self.r.run('latest_synced')
+        assert out.endswith('m20140615132456_init2.cql')
+
+    def testPrintNew(self):
+        self.r.run('init_db')
+        out = self.r.run('print_new xxx cql')
+        assert out.endswith('_xxx.cql'), out
 
 
 if __name__ == '__main__':
