@@ -22,12 +22,16 @@ Installation
 ============
 The tool is available as a Python package, so the simplest method to install it is using `pip` (or `easy_install`):
 ```
-$ pip install mschematool
+$ sudo pip install mschematool
 ```
+
+This step will not install packages needed for using specific databases:
+* for PostgreSQL, `psycopg2` Python package must be installed
+* for Cassandra, `cassandra-driver` Python package must be installed. The tool also requires access to local Cassandra installation (see the next point).
 
 Configuration
 =============
-Configuration file is a Python module listing available database and migration files locations:
+Configuration file is a Python module listing available databases and migration files locations. The following example lists two PostgreSQL databases:
 
 ```
 DATABASES = {
@@ -48,13 +52,49 @@ DATABASES = {
 LOG_FILE = '/tmp/mtest1.log'
 ```
 
-We have two "dbnicks" (short database names): `default` and `other`. For each we specify options:
+For each "dbnick" (a short database name - `default` and `other` in the example) a dictionary specifies a database. The following entries are common to all engines (not only PostgreSQL):
 * `migrations_dir` is a directory with migrations files (note that it's usually not a good idea to use a relative path here).
-* `engine` specifies database type
-* `dsn` specifies database connection parameters for the `postgres` engine, as described here: http://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING
+* `engine` specifies database type.
 * `after_sync` optionally specifies a shell command to run after a migration is synced (executed). In the case of `other` database a schema dump is performed.
-* `LOG_FILE` optionally specifies a log file which will record all the executed SQL and other information useful for debugging.
+* `LOG_FILE` is an optional global paremeter that specifies a log file which will record all the executed commands and other information useful for debugging.
 
+## PostgreSQL specific options
+
+* `dsn` specifies database connection parameters for the `postgres` engine, as described here: http://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING
+
+## Cassandra specific options
+
+An example Cassandra config:
+
+```
+import os.path
+
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+
+DATABASES = {
+        'cass_default': {
+            'migrations_dir': os.path.join(BASE_DIR, 'cass1'),
+            'engine': 'cassandra',
+            
+            'cqlsh_path': '/opt/cassandra/bin/cqlsh',
+            'pylib_path': '/opt/cassandra/pylib',
+            'keyspace': 'migrations',
+            'cluster_kwargs': {
+                'contact_points': ['127.0.0.1'],
+                'port': 9042,
+            },
+        }
+}
+
+```
+
+* `cqlsh_path` is a path to the `cqlsh` binary which is a part of Cassandra installaion.
+* `pylib_path` is a path to `pylib` subdirectory of a local Cassandra installation.
+* `keyspace` is a name of a keyspace in which `migration` column family (table) should be stored. You should create it manually, eg.:
+  ```CREATE KEYSPACE IF NOT EXISTS migrations WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 };```
+* `cluster_kwargs` is a dictionary with keyword arguments specifying a database connection (they are ``__init__`` arguments for the `Cluster` Python class), as specified here: http://datastax.github.io/python-driver/api/cassandra/cluster.html#cassandra.cluster.Cluster
+
+## Specifying configuration file
 
 Path to a configuration module can be specified using `--config` option or `MSCHEMATOOL_CONFIG` environment variable:
 ```
