@@ -102,9 +102,11 @@ $ export MSCHEMATOOL_CONFIG=./config_tutorial.py
 ```
 (again, it's better to use an absolute path so the `mschematool` command will work from any directory).
 
-Doing work
-==========
-Assuming the `mtutorial` database is created, we first need to initialize the database - create table `migration` for storing names of executed migrations.
+Tutorial
+========
+The tutorial uses the configuration with PostgreSQL databases, listed above (the usage of a Cassandra database looks identical, except `.sql` file extension should be replaced with `.cql`). The commands will work when executed from `example` subdirectory of the repository and when `config_tutorial.py` is specified as the configuration.
+
+Assuming the `mtutorial` Postgres database is created, we first need to initialize it - create the table `migration` for storing names of executed migrations.
 ```
 $ mschematool default init_db
 ```
@@ -116,32 +118,32 @@ $ ls migrations
 m20140615132455_create_article.sql
 m20140615133521_add_column_author.sql
 m20140615135414_insert_data.py
-
 ```
-let's sync them, assuring previously that all will be synced using `to_sync`:
+we want to execute ("sync") them. But let's first check what the tool thinks is not executed yet:
 ```
 $ mschematool default to_sync
 m20140615132455_create_article.sql
 m20140615133521_add_column_author.sql
 m20140615135414_insert_data.py
-
+```
+Ok, so it sees all the migrations, so let's execute some SQL and Python:
+```
 $ mschematool default sync   
 Executing m20140615132455_create_article.sql
 Executing m20140615133521_add_column_author.sql
 Executing m20140615135414_insert_data.py
-
+```
+And now no migration should be waiting for an execution:
+```
 $ mschematool default to_sync
 $
-
 ```
-`sync` command executes all migrations that weren't yet executed. For working with subsets of migrations, the best way is to put migrations (or symlinks to them) in different directories and specify them in a configuration module under different "dbnicks" configs.
-
-To execute a single migration without executing all the other available for syncing, use `force_sync_single`:
+`sync` command executes all migrations that weren't yet executed. To execute a single migration without executing all the other available for syncing, use `force_sync_single`:
 ```
 $ mschematool default force_sync_single m20140615132455_create_article.sql
 ```
 
-For more fine-grained control, modify `migration` table manually. The content is simple:
+For more fine-grained control, the table `migration` can be modified manually. The content is simple:
 ```
 $ psql mtutorial -c 'SELECT * FROM migration'
                  file                  |          executed          
@@ -151,19 +153,19 @@ $ psql mtutorial -c 'SELECT * FROM migration'
 (2 rows)
 ```
 
-For example, to forget about execution of a given migration, run
-```
-$ psql mtutorial -c "DELETE FROM migration WHERE file like '%insert_data%'"
-DELETE 1
-```
-
 Migrations
 ==========
 An SQL migration is a file with SQL statements. All statements are executed within a single database transaction. It means that when one of statements fail, all the changes made by previous statements are ROLLBACKed and a migration isn't recorder as executed.
 
-A Python migration is a file with `migrate` method that accepts a `connection` object, which is a DBAPI 2.0 connection. When an exception does not happen during execution, COMMIT is issued on a connection, so it isn't necessary to call `commit()` inside `migrate()`.
+A CQL migration (Apache Cassandra) is a file with CQL statements delimited with a `;` character. When execution of a statement fails, a migration isn't recorded as executed, but changes made by previous statements aren't canceled (due to no support for transactions).
 
-Example content of migration files:
+A Python migration is a file with `migrate` method that accepts a `connection` object:
+* for Postgres, it's a DBAPI 2.0 connection. When an exception does not happen during execution, COMMIT is issued on a connection, so it isn't necessary to call `commit()` inside `migrate()`.
+* for Cassandra, it's a [Cluster](http://datastax.github.io/python-driver/api/cassandra/cluster.html#cassandra.cluster.Cluster) instance.
+
+A migrations is marked as executed when no exception is raised.
+
+## Example Postgres migrations
 ```
 $ cat migrations/m20140615132455_create_article.sql
 CREATE TABLE article (id int, body text);
@@ -175,6 +177,22 @@ def migrate(connection):
     for i in range(10):
         cur.execute("""INSERT INTO article (id, body) VALUES (%s, %s)""", [i, str(i)])
 ```
+
+## Example Cassandra migrations
+
+```
+$ cat m20140615132456_init2.cql 
+CREATE KEYSPACE IF NOT EXISTS mtest WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
+CREATE TABLE mtest.author (name text, PRIMARY KEY(name));
+
+$ cat m20140615135414_insert3.py
+def migrate(cluster):
+    session = cluster.connect('mtest')
+    session.execute("""INSERT INTO article (id, body) VALUES (%s, %s)""", [10, 'xx'])
+
+```
+
+## Creating new migrations
 
 A helper `print_new` command is available for creating new migration files - it just prints a migration file name based on a description, using the current date and time as a timestamp:
 ```
@@ -188,4 +206,4 @@ Most of the functionality is implemented in subclasses of `MigrationsRepository`
 
 `MigrationsRepository` represents a repository of migrations available for execution, with the default implementation `DirRepository`, which is just a directory with files. You might want to extend/reimplement it when you need a smarter mechanism for dealing with sets of migrations.
 
-`MigrationsExecutor` represents a part that deals with executing migrations and storing results in a table. If you want to add support for a new database, you should implement a subclass of this class (see `PostgresMigrations` as an example).
+`MigrationsExecutor` represents a part that deals with executing migrations and storing results in a table. If you want to add support for a new database, you should implement a subclass of this class (see `PostgresMigrations` and `CassandraMigrations` as an example).
