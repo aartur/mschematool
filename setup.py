@@ -2,9 +2,9 @@ from setuptools import setup, find_packages
 
 setup(
         name = 'mschematool',
-        version = '0.5.0',
+        version = '0.6.0',
         py_modules = ['mschematool'],
-        install_requires = ['click', 'psycopg2'],
+        install_requires = ['click'],
         entry_points = {
             'console_scripts': [
                 'mschematool = mschematool:main',
@@ -18,6 +18,6 @@ setup(
 See description at `<https://github.com/aartur/mschematool>`_.
         ''',
         license = 'BSD',
-        keywords = 'database schema migrations postgresql postgres',
+        keywords = 'database schema migrations postgresql postgres cassandra',
         url = 'https://github.com/aartur/mschematool',
 )

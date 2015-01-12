@@ -13,10 +13,6 @@ import imp
 import warnings
 import traceback
 
-import psycopg2
-import psycopg2.extensions
-import psycopg2.extras
-
 import click
 
 
@@ -87,7 +83,7 @@ def _simplify_whitespace(s):
 
 def _assert_values_exist(d, *keys):
     for k in keys:
-        assert d.get(k), 'No required value %r specified'
+        assert d.get(k), 'No required value %r specified' % k
 
 # Taken from https://bitbucket.org/andrewgodwin/south/src/74742a1ba41ce6e9ea56cc694c824b7a93934ac6/south/db/generic.py?at=default
 def _sqlfile_to_statements(sql, regex=r"(?mx) ([^';]* (?:'[^']*'[^';]*)*)",
@@ -112,7 +108,7 @@ class MigrationsRepository(object):
     """
 
     def get_migrations(self, exclude=None):
-        """Return a list of all migrations. In a common case a migration will be a filename,
+        """Return a sorted list of all migrations. In a common case a migration will be a filename,
         without a leading directory part.
 
         :param exclude: a list or set of migrations to exclude from the result
@@ -240,23 +236,6 @@ class MigrationsExecutor(object):
 
 ## Postgres
 
-class PostgresLoggingDictCursor(psycopg2.extras.DictCursor):
-    """Postgres cursor subclass: log all SQL executed in the database.
-    """
-
-    def __init__(self, *args, **kwargs):
-        psycopg2.extras.DictCursor.__init__(self, *args, **kwargs)
-
-    def execute(self, sql, args=None):
-        if log.isEnabledFor(logging.INFO):
-            realsql = self.mogrify(sql, args)
-            log.info('Executing SQL: <<%s>>', _simplify_whitespace(realsql))
-        try:
-            psycopg2.extras.DictCursor.execute(self, sql, args)
-        except:
-            log.exception('Exception while executing SQL')
-            raise
-
 
 class PostgresMigrations(MigrationsExecutor):
 
@@ -267,10 +246,32 @@ class PostgresMigrations(MigrationsExecutor):
     TABLE = 'migration'
 
     def __init__(self, db_config, repository):
+        import psycopg2
+
         MigrationsExecutor.__init__(self, db_config, repository)
+
         self.conn = psycopg2.connect(self.db_config['dsn'])
 
     def cursor(self):
+        import psycopg2.extras
+
+        class PostgresLoggingDictCursor(psycopg2.extras.DictCursor):
+            """Postgres cursor subclass: log all SQL executed in the database.
+            """
+
+            def __init__(self, *args, **kwargs):
+                psycopg2.extras.DictCursor.__init__(self, *args, **kwargs)
+
+            def execute(self, sql, args=None):
+                if log.isEnabledFor(logging.INFO):
+                    realsql = self.mogrify(sql, args)
+                    log.info('Executing SQL: <<%s>>', _simplify_whitespace(realsql))
+                try:
+                    psycopg2.extras.DictCursor.execute(self, sql, args)
+                except:
+                    log.exception('Exception while executing SQL')
+                    raise
+
         return self.conn.cursor(cursor_factory=PostgresLoggingDictCursor)
 
     def initialize(self):

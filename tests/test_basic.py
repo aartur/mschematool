@@ -3,16 +3,19 @@
 """This file contains integration tests. Tests invoke mschematool commands using
 subprocess module and check command output and database contents.
 
-To run it, you need a running PostgreSQL database and commands
-
+For tests using PostgreSQL, you need a locally running Postgres server and commands
 $ createdb mtest1
 $ dropdb mtest1
-
 working without additional arguments.
+
+For tests using Cassandra, you need a locally running Cassandra server that accepts
+local connections without authorization.
 
 To execute tests, run (CWD must be the directory of this file):
 
-$ ./test_basic.py
+$ ./test_basic.py # postgres + cassandra
+$ ./test_basic CassandraTestBasic # cassandra
+$ ./test_basic PostgresTestBasic # postgres
 """
 
 import unittest
@@ -194,7 +197,7 @@ class CassandraTestBasic(PostgresTestBase):
     def testToSync(self):
         self.r.run('init_db')
         out = self.r.run('to_sync')
-        self.assertEqual(5, len(out.split('\n')))
+        self.assertEqual(6, len(out.split('\n')))
 
     def testSync(self):
         self.r.run('init_db')

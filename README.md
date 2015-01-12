@@ -155,7 +155,7 @@ $ psql mtutorial -c 'SELECT * FROM migration'
 
 Migrations
 ==========
-An SQL migration is a file with SQL statements. All statements are executed within a single database transaction. It means that when one of statements fail, all the changes made by previous statements are ROLLBACKed and a migration isn't recorder as executed.
+An SQL migration is a file with SQL statements. All statements are executed within a single database transaction. It means that when one of statements fail, all the changes made by previous statements are ROLLBACKed and a migration isn't recorded as executed.
 
 A CQL migration (Apache Cassandra) is a file with CQL statements delimited with a `;` character. When execution of a statement fails, a migration isn't recorded as executed, but changes made by previous statements aren't canceled (due to no support for transactions).
 
@@ -163,7 +163,7 @@ A Python migration is a file with `migrate` method that accepts a `connection` o
 * for Postgres, it's a DBAPI 2.0 connection. When an exception does not happen during execution, COMMIT is issued on a connection, so it isn't necessary to call `commit()` inside `migrate()`.
 * for Cassandra, it's a [Cluster](http://datastax.github.io/python-driver/api/cassandra/cluster.html#cassandra.cluster.Cluster) instance.
 
-A migrations is marked as executed when no exception is raised.
+A migration is marked as executed when no exception is raised.
 
 ## Example Postgres migrations
 ```
@@ -206,4 +206,6 @@ Most of the functionality is implemented in subclasses of `MigrationsRepository`
 
 `MigrationsRepository` represents a repository of migrations available for execution, with the default implementation `DirRepository`, which is just a directory with files. You might want to extend/reimplement it when you need a smarter mechanism for dealing with sets of migrations.
 
-`MigrationsExecutor` represents a part that deals with executing migrations and storing results in a table. If you want to add support for a new database, you should implement a subclass of this class (see `PostgresMigrations` and `CassandraMigrations` as an example).
+`MigrationsExecutor` represents a part that deals with executing migrations and storing results in a table. If you want to add support for a new database, you should implement a subclass of this class (see `PostgresMigrations` and `CassandraMigrations` as examples).
+
+For running integration tests see `tests/test_basic.py` docstrings.
