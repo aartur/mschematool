@@ -450,7 +450,7 @@ After it a command must be specified.
 
 @click.group(help=HELP)
 @click.option('--config', type=click.Path(exists=True, dir_okay=False), envvar='MSCHEMATOOL_CONFIG', help='Path to configuration module, e.g. "mydir/mschematool_config.py". Environment variable MSCHEMATOOL_CONFIG can be specified instead.', required=True)
-@click.option('--verbose/--no-verbose', default=False, help='Print executed SQL? Default: no.')
+@click.option('--verbose/--no-verbose', default=False, help='Print executed SQL/CQL? Default: no.')
 @click.argument('dbnick', type=str)
 @click.pass_context
 def main(ctx, config, verbose, dbnick):

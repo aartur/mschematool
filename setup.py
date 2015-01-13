@@ -4,7 +4,7 @@ setup(
         name = 'mschematool',
         version = '0.6.0',
         py_modules = ['mschematool'],
-        install_requires = ['click'],
+        install_requires = ['click==3.3'],
         entry_points = {
             'console_scripts': [
                 'mschematool = mschematool:main',

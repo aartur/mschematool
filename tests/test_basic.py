@@ -26,9 +26,6 @@ import sys
 import imp
 import traceback
 
-import psycopg2
-import psycopg2.extras
-
 
 sys.path.append('.')
 
@@ -59,10 +56,12 @@ class RunnerBase(object):
 class RunnerPostgres(RunnerBase):
 
     def __init__(self, config, dbnick):
+        import psycopg2
         RunnerBase.__init__(self, config, dbnick)
         self.conn = psycopg2.connect(self.config_module.DATABASES[self.dbnick]['dsn'])
 
     def cursor(self):
+        import psycopg2.extras
         return self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     def close(self):

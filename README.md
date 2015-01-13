@@ -20,7 +20,7 @@ Supported databases
 
 Installation
 ============
-The tool is available as a Python package, so the simplest method to install it is using `pip` (or `easy_install`):
+The tool is available as a Python 2.7 package, so the simplest method to install it is using `pip` (or `easy_install`):
 ```
 $ sudo pip install mschematool
 ```
