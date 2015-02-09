@@ -1,3 +1,8 @@
+0.6.1
+===
+
+* Fixed ordering migrations of mixed types (sql+py or cql+py).
+
 0.6
 ===
 
