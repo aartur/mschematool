@@ -209,7 +209,7 @@ class CassandraTestBasic(PostgresTestBase):
         self.r.run('init_db')
         self.r.run('sync')
         out = self.r.run('latest_synced')
-        assert out.endswith('m20140615135414_insert3.py')
+        assert out.endswith('m20140615133009_insert2.cql'), repr(out)
 
     def testForceSyncSingle(self):
         self.r.run('init_db')

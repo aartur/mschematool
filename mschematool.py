@@ -155,10 +155,10 @@ class DirRepository(MigrationsRepository):
     def _get_all_filenames(self):
         filenames = []
         for pattern in self.migration_patterns:
-            migrations = glob.glob(os.path.join(self.dir, pattern))
-            # lexicographical ordering
-            migrations.sort()
-            filenames.extend(migrations)
+            p_filenames = glob.glob(os.path.join(self.dir, pattern))
+            filenames.extend(p_filenames)
+        # lexicographical ordering
+        filenames.sort()
         return filenames
 
     def get_migrations(self, exclude=None):
