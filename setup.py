@@ -7,7 +7,7 @@ setup(
         install_requires = ['click==3.3'],
         entry_points = {
             'console_scripts': [
-                'mschematool = mschematool:main',
+                'mschematool = mschematool.cli:main',
             ]
         },
 

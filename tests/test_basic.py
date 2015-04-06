@@ -38,7 +38,8 @@ class RunnerBase(object):
         self.config_module = imp.load_source('mschematool_config', self.config)
 
     def run(self, cmd):
-        full_cmd = '../mschematool.py --config {self.config} {self.dbnick} {cmd}'.format(self=self,
+        os.environ['PYTHONPATH'] = '..'
+        full_cmd = '../mschematool/cli.py --config {self.config} {self.dbnick} {cmd}'.format(self=self,
                                                                                          cmd=cmd)
         sys.stderr.write(full_cmd + '\n')
         try:
