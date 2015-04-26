@@ -208,4 +208,4 @@ Most of the functionality is implemented in subclasses of `MigrationsRepository`
 
 `MigrationsExecutor` represents a part that deals with executing migrations and storing results in a table. If you want to add support for a new database, you should implement a subclass of this class (see `PostgresMigrations` and `CassandraMigrations` as examples).
 
-For running integration tests see `tests/test_basic.py` docstrings.
+For running integration tests see `tests/test_basic.py` docstrings (warning: running tests might destroy existing databases or tables).

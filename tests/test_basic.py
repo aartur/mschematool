@@ -1,15 +1,19 @@
 #!/usr/bin/env python
 
-"""This file contains integration tests. Tests invoke mschematool commands using
+"""WARNING: running code from this file might destroy existing databases or tables.
+
+This file contains integration tests. Tests invoke mschematool commands using
 subprocess module and check command output and database contents.
 
-For tests using PostgreSQL, you need a locally running Postgres server and commands
+For tests using PostgreSQL, you need a locally running Postgres server and
+commands:
 $ createdb mtest1
 $ dropdb mtest1
 working without additional arguments.
 
-For tests using Cassandra, you need a locally running Cassandra server that accepts
-local connections without authorization.
+For tests using Cassandra, you need a locally running Cassandra server that
+accepts local connections without authorization. WARNING: running tests will
+drop 'migrations' keyspace on the default cluster.
 
 To execute tests, run (CWD must be the directory of this file):
 
