@@ -44,6 +44,12 @@ class PostgresMigrations(core.MigrationsExecutor):
 
     def initialize(self):
         with self.cursor() as cur:
+            cur.execute("""SELECT EXISTS(SELECT * FROM information_schema.tables
+                           WHERE table_name=%s)""", [self.TABLE])
+            already_exists = cur.fetchone()[0]
+        if already_exists:
+            return
+        with self.cursor() as cur:
             cur.execute("""CREATE TABLE {table} (
                 file TEXT,
                 executed TIMESTAMP DEFAULT CURRENT_TIMESTAMP

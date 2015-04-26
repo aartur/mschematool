@@ -36,6 +36,7 @@ class RunnerBase(object):
         self.config = config
         self.dbnick = dbnick
         self.config_module = imp.load_source('mschematool_config', self.config)
+        self.last_retcode = None
 
     def run(self, cmd):
         os.environ['PYTHONPATH'] = '..'
@@ -44,9 +45,15 @@ class RunnerBase(object):
         sys.stderr.write(full_cmd + '\n')
         try:
             out = subprocess.check_output(shlex.split(full_cmd))
+        except subprocess.CalledProcessError as e:
+            self.last_retcode = e.returncode
+            out = e.output
         except:
-            print traceback.format_exc()
-            return ''
+            self.last_retcode = None
+            sys.stderr.write(traceback.format_exc() + '\n')
+            out = ''
+        else:
+            self.last_retcode = 0
         sys.stderr.write(out)
         return out.strip()
 
@@ -93,6 +100,17 @@ class RunnerCassandra(RunnerBase):
 
 
 
+### Tests common to all databases
+
+class CommonTests(object):
+
+    def testInitdbIdempotency(self):
+        self.r.run('init_db')
+        self.assertEqual(0, self.r.last_retcode)
+        self.r.run('init_db')
+        self.assertEqual(0, self.r.last_retcode)
+
+
 ### Postgres tests
 
 
@@ -114,7 +132,7 @@ class PostgresTestBase(unittest.TestCase):
             pass
 
 
-class PostgresTestBasic(PostgresTestBase):
+class PostgresTestBasic(PostgresTestBase, CommonTests):
 
     def testInitdb(self):
         self.r.run('init_db')
@@ -176,7 +194,7 @@ class PostgresTestSpecial(PostgresTestBase):
 ### Cassandra tests
 
 
-class CassandraTestBasic(PostgresTestBase):
+class CassandraTestBasic(unittest.TestCase, CommonTests):
 
     def setUp(self):
         self.r = RunnerCassandra('config_basic.py', 'cass_default')
