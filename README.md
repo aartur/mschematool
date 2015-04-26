@@ -1,4 +1,4 @@
-mschematool
+mschematool
 ===========
 
 mschematool is a simple tool for managing database migrations, similar to other tools:
