@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 
 setup(
         name = 'mschematool',
-        version = '0.6.1',
-        py_modules = ['mschematool'],
+        version = '0.6.3',
+        packages = ['mschematool'],
         install_requires = ['click==3.3'],
         entry_points = {
             'console_scripts': [

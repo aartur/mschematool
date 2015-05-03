@@ -1,5 +1,16 @@
+0.6.3
+=====
+
+* Fixed setup.py script, 0.6.2 version couldn't be properly installed
+
+0.6.2
+=====
+
+* init\_db command is idempotent (can be called multiple times without errors)
+* Internal refactoring
+
 0.6.1
-===
+=====
 
 * Fixed ordering migrations of mixed types (sql+py or cql+py).
 
