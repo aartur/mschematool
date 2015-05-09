@@ -1,3 +1,8 @@
+0.6.5
+=====
+
+* Removed Python 3.4 from PyPI classifiers (Python 2.7 is required). Nonetheless, Postgres migrations will now work on Python 3.x.
+
 0.6.4
 =====
 
