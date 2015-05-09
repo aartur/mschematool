@@ -10,6 +10,10 @@ setup(
                 'mschematool = mschematool.cli:main',
             ]
         },
+        extras_require = {
+            'postgresql': ['psycopg2'],
+            'cassandra': ['cassandra-driver', 'blist'],
+        },
 
         author = 'Artur Siekielski',
         author_email = 'artur.siekielski@vhex.net',
