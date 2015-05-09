@@ -27,7 +27,7 @@ warnings.filterwarnings('ignore')
 ### Utility functions
 
 def _simplify_whitespace(s):
-    return ' '.join(s.split())
+    return b' '.join(s.split())
 
 def _assert_values_exist(d, *keys):
     for k in keys:

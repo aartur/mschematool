@@ -44,7 +44,7 @@ class RunnerBase(object):
 
     def run(self, cmd):
         os.environ['PYTHONPATH'] = '..'
-        full_cmd = '../mschematool/cli.py --config {self.config} {self.dbnick} {cmd}'.format(self=self,
+        full_cmd = '../mschematool/cli.py --config {self.config} --verbose {self.dbnick} {cmd}'.format(self=self,
                                                                                          cmd=cmd)
         sys.stderr.write(full_cmd + '\n')
         try:
@@ -58,8 +58,8 @@ class RunnerBase(object):
             out = ''
         else:
             self.last_retcode = 0
-        sys.stderr.write(out)
-        return out.strip()
+        sys.stderr.write(out.decode('unicode_escape'))
+        return out.decode('unicode_escape').strip()
 
     def close(self):
         pass
