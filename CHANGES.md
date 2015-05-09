@@ -1,3 +1,8 @@
+0.6.4
+=====
+
+* setup.py from 0.6.3 was still broken, fixes and improvements by spinus
+
 0.6.3
 =====
 
