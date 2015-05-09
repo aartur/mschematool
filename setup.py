@@ -24,4 +24,11 @@ See description at `<https://github.com/aartur/mschematool>`_.
         license = 'BSD',
         keywords = 'database schema migrations postgresql postgres cassandra',
         url = 'https://github.com/aartur/mschematool',
+        classifiers = [
+            'Topic :: Database',
+            'Environment :: Console',
+            'License :: OSI Approved :: BSD License',
+            'Programming Language :: Python :: 2.7',
+            'Programming Language :: Python :: 3.4',
+        ],
 )
