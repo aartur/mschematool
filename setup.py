@@ -12,7 +12,7 @@ setup(
         },
         extras_require = {
             'postgresql': ['psycopg2'],
-            'cassandra': ['cassandra-driver', 'blist'],
+            'cassandra': ['cassandra-driver'],
         },
 
         author = 'Artur Siekielski',
@@ -29,6 +29,5 @@ See description at `<https://github.com/aartur/mschematool>`_.
             'Environment :: Console',
             'License :: OSI Approved :: BSD License',
             'Programming Language :: Python :: 2.7',
-            'Programming Language :: Python :: 3.4',
         ],
 )
