@@ -26,6 +26,14 @@ DATABASES = {
                 'contact_points': ['127.0.0.1'],
                 'port': 9042,
             },
+        },
+
+        'sqlite3_default': {
+            'migrations_dir': os.path.join(BASE_DIR, 'migrations1'),
+            'engine': 'sqlite3',
+            'database': '/tmp/sqlite3test.sql',
+            'connect_kwargs': {
+            },
         }
 }
 

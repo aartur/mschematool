@@ -5,6 +5,24 @@ DATABASES = {
             'dsn': 'host=127.0.0.1 dbname=mtutorial',
         },
 
+        'sqlite3': {
+            'migrations_dir': './migrations/',
+            'engine': 'sqlite3',
+            # First "database" argument to sqlite3.connect()
+            'database': './dbname.sq3',
+        },
+
+        'sqlite3-readonly': {
+            'migrations_dir': './migrations/',
+            'engine': 'sqlite3',
+            'database': 'file:./dbname.sq3?mode=ro',
+            'connect_kwargs': {
+                # Named "uri" argument to sqlite3.connect(), changes how
+                # database argument is interpreted.
+                'uri': True,
+            },
+        },
+
         'other': {
             'migrations_dir': './migrations_other/',
             'engine': 'postgres',

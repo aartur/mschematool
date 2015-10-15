@@ -17,6 +17,7 @@ Supported databases
 ===================
 * PostgreSQL
 * Apache Cassandra
+* SQLite3
 
 Installation
 ============
@@ -61,6 +62,29 @@ For each "dbnick" (a short database name - `default` and `other` in the example)
 ## PostgreSQL specific options
 
 * `dsn` specifies database connection parameters for the `postgres` engine, as described here: http://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING
+
+## Sqlite3 specific options
+
+An example sqlite3 config:
+
+```
+import os.path
+import sqlite3
+
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+
+DATABASES = {
+        'default': {
+            'migrations_dir': os.path.join(BASE_DIR, 'migrations'),
+            'engine': 'sqlite3',
+            'database': os.path.join(BASE_DIR, 'db.sqlite3'),
+            'connect_kwargs': {
+                'detect_types': sqlite3.PARSE_DECLTYPES,
+            },
+        }
+```
+
+* `connect_kwargs` is a dictionary with keyword arguments specifying special options to [sqlite3.connect](https://docs.python.org/3/library/sqlite3.html#sqlite3.connect).  For example, if you pass `'uri': true`, the `database` keyword will be interpreted as an URI instead of a filename (which allows you to pass [various other options](https://sqlite.org/uri.html) for controlling sqlite3).
 
 ## Cassandra specific options
 
@@ -199,6 +223,35 @@ A helper `print_new` command is available for creating new migration files - it 
 $ mschematool default print_new 'more changes'    
 ./migrations/m20140615194820_more_changes.sql
 ```
+
+## Dealing with dialect differences
+
+If you support multiple SQL databases in your project, you can use the
+flavour-specific extension instead of `.sql` as an extension.  The
+current mapping is as follows:
+
+Extension | Dialect
+----------|------------------------------------------------------------------------------------
+`.py`     | All supported databases (use duck typing or class inspection to handle differences)
+`.sql`    | All SQL databases
+`.sql3`   | SQLite3
+`.psql`   | PostgreSQL
+`.cql`    | Cassandra (non-SQL)
+
+For each migration, you can create a file with a differing extension
+for each database.  For example, if you support postgres and sqlite3
+and you have a migration that uses dialect-specific stuff, create a
+file called `002-foo.sql3` and `002-foo.psql`.
+
+Each file performs analogous actions for that database.  The
+database-specific migrator will only "see" the files pertaining to
+that database.  For migrations that are not database-specific, simply
+write `003-bar.sql`.  Python files are always executed for every
+supported database, so you'll have to resort to more fancy tricks for
+making the distinction, when that's needed.  In most cases, you won't
+have to do that, because most databases support the common API, from
+[PEP 0249](https://www.python.org/dev/peps/pep-0249/).
+
 
 Contributing and extending
 ==========================
