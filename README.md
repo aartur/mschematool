@@ -226,30 +226,29 @@ $ mschematool default print_new 'more changes'
 
 ## Dealing with dialect differences
 
-If you support multiple SQL databases in your project, you can use the
-flavour-specific extension instead of `.sql` as an extension.  The
-current mapping is as follows:
+If you support multiple SQL databases in your project, you can have a single directory with migrations specified for multiple `DATABASES` in the config. You can then use engine-specific filename extensions. Migrations having the `.sql` extension will be seen by all SQL engines. Migration filenames ending with an engine's name will be seen by the engine only.
 
-Extension | Dialect
-----------|------------------------------------------------------------------------------------
-`.py`     | All supported databases (use duck typing or class inspection to handle differences)
-`.sql`    | All SQL databases
-`.sql3`   | SQLite3
-`.psql`   | PostgreSQL
-`.cql`    | Cassandra (non-SQL)
+For example, if you have these files:
+```
+001.sql
+002.sqlite3
+002.postgres
+003.sqlite3
+004.py
+```
+a `postgres` engine will execute `001.sql 002.postgres 004.py`, while an `sqlite3` engine will execute `001.sql 002.sqlite3 003.sqlite3 004.py`.
 
-For each migration, you can create a file with a differing extension
-for each database.  For example, if you support postgres and sqlite3
-and you have a migration that uses dialect-specific stuff, create a
-file called `002-foo.sql3` and `002-foo.psql`.
+Python files are always executed for every
+supported database. If you need to know for which engine an execution is perfomed, specify a second argument to the `migrate` function:
+```
+def migrate(connection, db_config):
+    if db_config['engine'] == 'postgres':
+        # ...
+```
+The `db_config` argument is a dictionary specified in `DATABASES` for which the execution is performed.
 
-Each file performs analogous actions for that database.  The
-database-specific migrator will only "see" the files pertaining to
-that database.  For migrations that are not database-specific, simply
-write `003-bar.sql`.  Python files are always executed for every
-supported database, so you'll have to resort to more fancy tricks for
-making the distinction, when that's needed.  In most cases, you won't
-have to do that, because most databases support the common API, from
+Note than in most cases, you won't
+have to detect an engine, because most databases support the common API, from
 [PEP 0249](https://www.python.org/dev/peps/pep-0249/).
 
 
