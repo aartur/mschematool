@@ -1,3 +1,12 @@
+0.7
+=====
+
+**WARNING**. This release drops the requirement of migration files having the `m` prefix. All filenames ending with `.sql`, `.cql`, `.py`, `.postgres`, `.sqlite3` will be selected for execution. The tool might execute more files than previously (if your `migrations_dir` contains files that were previously skipped).
+
+* SQLite3 support (implemented by Peter Bex)
+* Support for engine-specific migrations
+* `migrate` can receive the current `db_config`
+
 0.6.5
 =====
 
