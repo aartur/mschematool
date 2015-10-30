@@ -1,15 +1,14 @@
 mschematool
 ===========
 
-mschematool is a simple tool for managing database migrations, similar to other tools:
+mschematool is a simple tool for managing database migrations.
+Migrations are native SQL/CQL scripts or Python modules. Configuration is a Python module. More details:
 
-* migrations are written as files which names look like this:
+* migrations are ordered using lexicographical comparison. Sample suggested filenames:
   * `m20140615133521_add_column_author.sql`
   * `m20140615135414_insert_data.py`
-* migrations are ordered using lexicographical comparison - the tool suggest using a timestamp as the leading filename component
-* migrations can be either .sql/.cql files or Python modules that receive a database connection
 * information about executed migrations is stored inside a database for which migrations were executed in a simple table with file names and execution time only (it can be manually modified if needed)
-* a configuration file can specify multiple database connections
+* a configuration module can specify multiple database connections
 
 Why the tool was created when similar already exist? Actually they have drawbacks that make them unsuitable for some scenarios, like: no support for native SQL format, Java installation requirement, no support for multiple databases, lack of robustness.
 
