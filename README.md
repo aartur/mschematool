@@ -180,6 +180,8 @@ Migrations
 ==========
 An SQL migration is a file with SQL statements. All statements are executed within a single database transaction. It means that when one of statements fail, all the changes made by previous statements are ROLLBACKed and a migration isn't recorded as executed.
 
+**WARNING**. Due to [sqlite3 module behaviour](http://bugs.python.org/issue10740) Sqlite migrations might not work as described above.
+
 A CQL migration (Apache Cassandra) is a file with CQL statements delimited with a `;` character. When execution of a statement fails, a migration isn't recorded as executed, but changes made by previous statements aren't canceled (due to no support for transactions).
 
 A Python migration is a file with `migrate` method that accepts a `connection` object:
