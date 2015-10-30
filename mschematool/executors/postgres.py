@@ -71,7 +71,7 @@ class PostgresMigrations(core.MigrationsExecutor):
     def execute_python_migration(self, migration_file, module):
         assert hasattr(module, 'migrate'), 'Python module must have `migrate` function accepting ' \
             'a database connection'
-        module.migrate(self.conn)
+        self._call_migrate(module, self.conn)
         self._migration_success(migration_file)
         self.conn.commit()
 

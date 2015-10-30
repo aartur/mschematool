@@ -22,6 +22,12 @@ DATABASES = {
             'dsn': 'host=127.0.0.1 dbname=mtest1',
         },
 
+        'migrate_args': {
+            'migrations_dir': os.path.join(BASE_DIR, 'migrate_args'),
+            'engine': 'postgres',
+            'dsn': 'host=127.0.0.1 dbname=mtest1',
+        },
+
         'cass_default': {
             'migrations_dir': os.path.join(BASE_DIR, 'cass1'),
             'engine': 'cassandra',

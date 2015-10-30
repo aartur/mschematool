@@ -105,6 +105,7 @@ class RunnerCassandra(RunnerBase):
     def close(self):
         self.cluster.shutdown()
 
+
 class RunnerSqlite3(RunnerBase):
 
     def __init__(self, config, dbnick):
@@ -234,6 +235,22 @@ class PostgresTestFileExtensions(PostgresTestBase):
             u'no_m.sql',
             u'pgsql_specific.postgres',
         ], out.splitlines())
+
+
+class PostgresTestPassingDbConfig(PostgresTestBase):
+    dbnick = 'migrate_args'
+
+    def testSync(self):
+        self.r.run('init_db')
+        self.r.run('sync')
+
+        out = self.r.run('synced')
+        self.assertEqual(5, len(out.split('\n')))
+
+        with self.r.cursor() as cur:
+            cur.execute("""SELECT id FROM article""")
+            ids = [r[0] for r in cur.fetchall()]
+        self.assertEqual([1, 2, 3], ids)
 
 
 ### Cassandra tests

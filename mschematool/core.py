@@ -10,6 +10,7 @@ import imp
 import warnings
 import traceback
 import importlib
+import inspect
 
 import click
 
@@ -232,6 +233,16 @@ class MigrationsExecutor(object):
         :param migration: migration (filename) to be executed
         """
         raise NotImplementedError()
+
+    def _call_migrate(self, module, connection_param):
+        """Subclasses should call this method instead of `module.migrate` directly,
+        to support `db_config` optional argument.
+        """
+        args = [connection_param]
+        spec = inspect.getargspec(module.migrate)
+        if len(spec.args) == 2:
+            args.append(self.db_config)
+        return module.migrate(*args)
 
     def execute_migration(self, migration_file_relative):
         """This recognizes migration type and executes either

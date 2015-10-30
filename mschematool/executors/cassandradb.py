@@ -66,7 +66,7 @@ class CassandraMigrations(core.MigrationsExecutor):
     def execute_python_migration(self, migration_file, module):
         assert hasattr(module, 'migrate'), 'Python module must have `migrate` function accepting ' \
             'a Cluster object'
-        module.migrate(self.cluster)
+        self._call_migrate(module, self.cluster)
         self._migration_success(migration_file)
 
     def execute_native_migration(self, migration_file):
