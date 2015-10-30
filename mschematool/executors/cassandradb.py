@@ -16,7 +16,7 @@ log = core.log
 class CassandraMigrations(core.MigrationsExecutor):
 
     engine = 'cassandra'
-    patterns = ['m*.cql', 'm*.py']
+    filename_extensions = ['cql']
 
     TABLE = 'migration'
 

@@ -29,7 +29,7 @@ class Sqlite3LoggingCursor(sqlite3.Cursor):
 class Sqlite3Migrations(core.MigrationsExecutor):
 
     engine = 'sqlite3'
-    patterns = ['m*.sql', 'm*.sql3', 'm*.py']
+    filename_extensions = ['sql']
 
     TABLE = 'migration'
 

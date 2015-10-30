@@ -173,6 +173,7 @@ class DirRepository(MigrationsRepository):
             filenames = sorted(filenames)
         return filenames
 
+
 #### Database-independent interface for migration-related operations
 
 class MigrationsExecutor(object):
@@ -182,19 +183,28 @@ class MigrationsExecutor(object):
 
     :attr:`MigrationsExecutor.engine` is an engine name that can be referenced from
         a config module.
-    :attr:`MigrationsExecutor.patterns` is a list of filename glob patterns
-        specifying files which execution is supported.
+    :attr:`MigrationsExecutor.file_extensions` is a list of filename extensions
+        specifying files which execution is supported, in addition to 'py' and
+        the engine name.
 
     :param db_config: a dictionary with configuration for a single dbnick.
     :param repository: :class:`MigrationsRepository` implementation.
     """
 
     engine = 'unknown'
-    patterns = []
+    filename_extensions = []
 
     def __init__(self, db_config, repository):
         self.db_config = db_config
         self.repository = repository
+
+    @classmethod
+    def supported_filename_globs(cls):
+        def glob_from_ext(ext):
+            return '*.%s' % ext
+        default_globs = [glob_from_ext('py'), glob_from_ext(cls.engine)]
+        custom_globs = [glob_from_ext(ext) for ext in cls.filename_extensions]
+        return default_globs + custom_globs
 
     def initialize(self):
         """Initialize resources needed for tracking migrations. It will usually
@@ -258,7 +268,7 @@ class MSchemaTool(object):
         assert 'engine' in self.db_config and self.db_config['engine'] in ENGINE_TO_IMPL, \
             'Unknown or invalid engine specified, choose one of %s' % ENGINE_TO_IMPL.keys()
         engine_cls = _import_class(ENGINE_TO_IMPL[self.db_config['engine']])
-        self.repository = DirRepository(self.db_config['migrations_dir'], engine_cls.patterns)
+        self.repository = DirRepository(self.db_config['migrations_dir'], engine_cls.supported_filename_globs())
         self.migrations = engine_cls(self.db_config, self.repository)
 
     def not_executed_migration_files(self):

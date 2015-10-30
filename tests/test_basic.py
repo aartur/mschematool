@@ -20,9 +20,9 @@ drop 'migrations' keyspace on the default cluster.
 To execute tests, run (CWD must be the directory of this file):
 
 $ ./test_basic.py # postgres + cassandra
-$ ./test_basic CassandraTestBasic # cassandra
-$ ./test_basic PostgresTestBasic # postgres
-$ ./test_basic Sqlite3TestBasic # sqlite3
+$ ./test_basic.py CassandraTestBasic # cassandra
+$ ./test_basic.py PostgresTestBasic # postgres
+$ ./test_basic.py Sqlite3TestBasic # sqlite3
 """
 
 import unittest
@@ -220,6 +220,20 @@ class PostgresTestSpecial(PostgresTestBase):
         with self.r.cursor() as cur:
             cur.execute("""SELECT COUNT(*) FROM article""")
             self.assertEqual(1, cur.fetchone()[0])
+
+
+class PostgresTestFileExtensions(PostgresTestBase):
+    dbnick = 'extensions1'
+
+    def testToSync(self):
+        self.r.run('init_db')
+        out = self.r.run('to_sync')
+        self.assertEqual([
+            u'm20140615132455_init.sql',
+            u'm20140615132456_init.postgres',
+            u'no_m.sql',
+            u'pgsql_specific.postgres',
+        ], out.splitlines())
 
 
 ### Cassandra tests
