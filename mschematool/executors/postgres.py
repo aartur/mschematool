@@ -31,7 +31,7 @@ class PostgresLoggingDictCursor(psycopg2.extras.DictCursor):
 class PostgresMigrations(core.MigrationsExecutor):
 
     engine = 'postgres'
-    patterns = ['m*.sql', 'm*.py']
+    patterns = ['m*.sql', 'm*.psql', 'm*.py']
 
     TABLE = 'migration'
 

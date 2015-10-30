@@ -5,6 +5,8 @@
 This file contains integration tests. Tests invoke mschematool commands using
 subprocess module and check command output and database contents.
 
+For tests using SQLite3, it only requires write access in /tmp.
+
 For tests using PostgreSQL, you need a locally running Postgres server and
 commands:
 $ createdb mtest1
@@ -20,6 +22,7 @@ To execute tests, run (CWD must be the directory of this file):
 $ ./test_basic.py # postgres + cassandra
 $ ./test_basic CassandraTestBasic # cassandra
 $ ./test_basic PostgresTestBasic # postgres
+$ ./test_basic Sqlite3TestBasic # sqlite3
 """
 
 import unittest
@@ -102,6 +105,30 @@ class RunnerCassandra(RunnerBase):
     def close(self):
         self.cluster.shutdown()
 
+class RunnerSqlite3(RunnerBase):
+
+    def __init__(self, config, dbnick):
+        import sqlite3
+
+        RunnerBase.__init__(self, config, dbnick)
+
+        dbconfig = self.config_module.DATABASES[self.dbnick]
+        try:
+            os.unlink(dbconfig['database'])
+        except OSError:
+            pass
+        assert dbconfig['engine'] == 'sqlite3'
+        self.conn = sqlite3.connect(dbconfig['database'], **dbconfig['connect_kwargs'])
+
+    def cursor(self):
+        return self.conn.cursor()
+
+    def close(self):
+        try:
+            dbconfig = self.config_module.DATABASES[self.dbnick]
+            os.unlink(dbconfig['database'])
+        except OSError:
+            pass
 
 
 ### Tests common to all databases
@@ -248,6 +275,62 @@ class CassandraTestBasic(unittest.TestCase, CommonTests):
         self.r.run('init_db')
         out = self.r.run('print_new xxx cql')
         assert out.endswith('_xxx.cql'), out
+
+
+### Sqlite3 tests
+
+class Sqlite3TestBasic(unittest.TestCase, CommonTests):
+
+    def setUp(self):
+        self.r = RunnerSqlite3('config_basic.py', 'sqlite3_default')
+
+    def tearDown(self):
+        self.r.close()
+
+    def testInitdb(self):
+        self.r.run('init_db')
+        cur = self.r.cursor()
+        cur.execute("""SELECT EXISTS(SELECT * FROM sqlite_master
+        WHERE tbl_name='migration')""")
+        self.assertTrue(cur.fetchone()[0])
+
+    def testToSync(self):
+        self.r.run('init_db')
+        out = self.r.run('to_sync')
+        self.assertEqual(5, len(out.split('\n')))
+
+    def testSync(self):
+        self.r.run('init_db')
+        self.r.run('sync')
+        cur = self.r.cursor()
+        cur.execute("""SELECT COUNT(*) FROM article""")
+        self.assertEqual(4, cur.fetchone()[0])
+
+    def testLatestSynced(self):
+        self.r.run('init_db')
+        self.r.run('sync')
+        out = self.r.run('latest_synced')
+        assert out.endswith('m20140615135414_insert3.py')
+
+    def testForceSyncSingle(self):
+        self.r.run('init_db')
+        self.r.run('force_sync_single m20140615132456_init2.sql')
+
+        out = self.r.run('synced')
+        self.assertEqual(1, len(out.split('\n')))
+
+        out = self.r.run('latest_synced')
+        assert out.endswith('m20140615132456_init2.sql')
+
+    def testPrintNew(self):
+        self.r.run('init_db')
+        out = self.r.run('print_new xxx')
+        assert out.endswith('_xxx.sql'), out
+
+    def testPrintNewPy(self):
+        self.r.run('init_db')
+        out = self.r.run('print_new xxx py')
+        assert out.endswith('_xxx.py'), out
 
 
 if __name__ == '__main__':

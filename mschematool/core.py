@@ -241,6 +241,7 @@ class MigrationsExecutor(object):
 ENGINE_TO_IMPL = {
     'postgres': 'mschematool.executors.postgres.PostgresMigrations',
     'cassandra': 'mschematool.executors.cassandradb.CassandraMigrations',
+    'sqlite3': 'mschematool.executors.sqlite3.Sqlite3Migrations',
 }
 
 
