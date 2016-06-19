@@ -129,7 +129,7 @@ class MigrationsRepository(object):
         """
         return os.path.join(self.dir,
                             'm{datestr}_{name}.{suffix}'.format(
-                                datestr=datetime.datetime.now().strftime('%Y%m%d%H%M%S'),
+                                datestr=datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S'),
                                 name=name.replace(' ', '_'),
                                 suffix=suffix))
 
