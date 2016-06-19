@@ -274,11 +274,15 @@ class MSchemaTool(object):
     def __init__(self, config, dbnick):
         self.config = config
         self.dbnick = dbnick
-        assert dbnick in config.module.DATABASES, 'Not found in DATABASES in config: %s' % dbnick
+
+        if dbnick not in config.module.DATABASES:
+            raise click.ClickException('Not found in DATABASES in config: %s, available: %s' % (dbnick, ', '.join(config.module.DATABASES.keys())))
         self.db_config = config.module.DATABASES[dbnick]
-        assert 'engine' in self.db_config and self.db_config['engine'] in ENGINE_TO_IMPL, \
-            'Unknown or invalid engine specified, choose one of %s' % ENGINE_TO_IMPL.keys()
+
+        if 'engine' not in self.db_config or self.db_config['engine'] not in ENGINE_TO_IMPL:
+            raise click.ClickException('Unknown or invalid engine specified for the database %s, choose one of %s' % (dbnick, ENGINE_TO_IMPL.keys()))
         engine_cls = _import_class(ENGINE_TO_IMPL[self.db_config['engine']])
+
         self.repository = DirRepository(self.db_config['migrations_dir'], engine_cls.supported_filename_globs())
         self.migrations = engine_cls(self.db_config, self.repository)
 
