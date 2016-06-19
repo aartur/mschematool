@@ -1,3 +1,9 @@
+0.7.1
+=====
+
+
+* `print_new` commands uses a UTC datetime (see issue #6).
+
 0.7
 =====
 
