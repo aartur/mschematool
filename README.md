@@ -219,11 +219,13 @@ def migrate(cluster):
 
 ## Creating new migrations
 
-A helper `print_new` command is available for creating new migration files - it just prints a migration file name based on a description, using the current date and time as a timestamp:
+A helper `print_new` command is available for creating new migration files - it just prints a suggested migration file name based on a description, using the current date and time as a timestamp:
 ```
 $ mschematool default print_new 'more changes'    
 ./migrations/m20140615194820_more_changes.sql
 ```
+
+The `m` prefix makes a Python module implementing a migration to have a valid name (it can't start with a digit). However, the tool will see all filenames ending with `sql`, `cql`, `py`, so you can use a different naming convention. Moreover, the migrations are sorted using ordinary lexicographical comparison, so instead of a timestamp, other ordering mechanisms can be used (sequences like `001.sql 002.sql 003.sql`, or two-component names like `branchA_001.sql branchB_001.sql`).
 
 ## Dealing with dialect differences
 
@@ -255,10 +257,10 @@ have to detect an engine, because most databases support the common API, from
 
 Contributing and extending
 ==========================
-Most of the functionality is implemented in subclasses of `MigrationsRepository` and `MigrationsExecutor` in `mschematool.py` file.
+Most of the functionality is implemented in subclasses of `MigrationsRepository` and `MigrationsExecutor` in `mschematool/core.py` file.
 
-`MigrationsRepository` represents a repository of migrations available for execution, with the default implementation `DirRepository`, which is just a directory with files. You might want to extend/reimplement it when you need a smarter mechanism for dealing with sets of migrations.
+`MigrationsRepository` represents a repository of migrations available for execution, with the default implementation `DirRepository`, which is just a directory with files. You might want to create an alternative implemention if you need something more sophisticated.
 
-`MigrationsExecutor` represents a part that deals with executing migrations and storing results in a table. If you want to add support for a new database, you should implement a subclass of this class (see `PostgresMigrations` and `CassandraMigrations` as examples).
+`MigrationsExecutor` represents a part that deals with executing migrations and storing results in a table. If you want to add support for a new database, you should implement a subclass of this class (see the modules inside the `executors` package for examples).
 
 For running integration tests see `tests/test_basic.py` docstrings (warning: running tests might destroy existing databases or tables).
