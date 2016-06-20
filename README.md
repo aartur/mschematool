@@ -219,7 +219,7 @@ def migrate(cluster):
 
 ## Creating new migrations
 
-A helper `print_new` command is available for creating new migration files - it just prints a suggested migration file name based on a description, using the current date and time as a timestamp:
+A helper `print_new` command is available for creating new migration files - it just prints a suggested migration file name based on a description, using the current UTC date and time as a timestamp:
 ```
 $ mschematool default print_new 'more changes'    
 ./migrations/m20140615194820_more_changes.sql
