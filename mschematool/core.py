@@ -95,10 +95,11 @@ class Config(object):
 def _sqlfile_to_statements(sql):
     """
     Takes a SQL string containing 0 or more statements and returns a 
-    list of individual statements as strings
+    list of individual statements as strings. Comments and
+    empty statements are ignored.
     """
-    return [sqlparse.format(statement, strip_comments=True)
-            for statement in sqlparse.split(sql) if statement]
+    statements = (sqlparse.format(stmt, strip_comments=True) for stmt in sqlparse.split(sql))
+    return [stmt for stmt in statements if stmt]
 
 #### Migrations repositories
 
