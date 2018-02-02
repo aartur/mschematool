@@ -91,13 +91,14 @@ class Config(object):
         return self._module
 
 
+# Taken from https://bitbucket.org/andrewgodwin/south/src/74742a1ba41ce6e9ea56cc694c824b7a93934ac6/south/db/generic.py?at=default
 def _sqlfile_to_statements(sql):
     """
     Takes a SQL string containing 0 or more statements and returns a 
     list of individual statements as strings
     """
-    return sqlparse.split(sql)
-
+    return [sqlparse.format(statement, strip_comments=True)
+            for statement in sqlparse.split(sql) if statement]
 
 #### Migrations repositories
 
