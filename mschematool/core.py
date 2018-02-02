@@ -98,7 +98,7 @@ def _sqlfile_to_statements(sql):
     list of individual statements as strings. Comments and
     empty statements are ignored.
     """
-    statements = (sqlparse.format(stmt, strip_comments=True) for stmt in sqlparse.split(sql))
+    statements = (sqlparse.format(stmt, strip_comments=True).strip() for stmt in sqlparse.split(sql))
     return [stmt for stmt in statements if stmt]
 
 #### Migrations repositories
