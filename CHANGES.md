@@ -1,3 +1,10 @@
+0.8
+===
+
+* use more robust SQL parsing using `sqlparse` (implemented by CrescentFresh)
+* relax version dependency on `click` (previously, `==3.3` was specified, now no version is mentioned).
+
+
 0.7.1
 =====
 
