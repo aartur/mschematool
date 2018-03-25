@@ -11,7 +11,7 @@ setup(
             ]
         },
         extras_require = {
-            'postgresql': ['psycopg2'],
+            'postgresql': ['psycopg2','sqlparse'],
             'cassandra': ['cassandra-driver'],
         },
 

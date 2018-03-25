@@ -11,6 +11,7 @@ import warnings
 import traceback
 import importlib
 import inspect
+import sqlparse
 
 import click
 
@@ -90,20 +91,14 @@ class Config(object):
         return self._module
 
 
-# Taken from https://bitbucket.org/andrewgodwin/south/src/74742a1ba41ce6e9ea56cc694c824b7a93934ac6/south/db/generic.py?at=default
-def _sqlfile_to_statements(sql, regex=r"(?mx) ([^';]* (?:'[^']*'[^';]*)*)",
-        comment_regex=r"(?mx) (?:^\s*$)|(?:--.*$)"):
+def _sqlfile_to_statements(sql):
     """
-    Takes a SQL file and executes it as many separate statements.
-    (Some backends, such as Postgres, don't work otherwise.)
+    Takes a SQL string containing 0 or more statements and returns a 
+    list of individual statements as strings. Comments and
+    empty statements are ignored.
     """
-    # Be warned: This function is full of dark magic. Make sure you really
-    # know regexes before trying to edit it.
-    # First, strip comments
-    sql = "\n".join([x.strip().replace("%", "%%") for x in re.split(comment_regex, sql) if x.strip()])
-    # Now execute each statement
-    return re.split(regex, sql)[1:][::2]
-
+    statements = (sqlparse.format(stmt, strip_comments=True).strip() for stmt in sqlparse.split(sql))
+    return [stmt for stmt in statements if stmt]
 
 #### Migrations repositories
 
