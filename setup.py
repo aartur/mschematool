@@ -2,16 +2,19 @@ from setuptools import setup, find_packages
 
 setup(
         name = 'mschematool',
-        version = '0.7.1',
+        version = '0.8',
         packages = ['mschematool', 'mschematool.executors'],
-        install_requires = ['click==3.3'],
+        install_requires = [
+            'click',
+            'sqlparse',
+        ],
         entry_points = {
             'console_scripts': [
                 'mschematool = mschematool.cli:main',
             ]
         },
         extras_require = {
-            'postgresql': ['psycopg2','sqlparse'],
+            'postgresql': ['psycopg2'],
             'cassandra': ['cassandra-driver'],
         },
 
