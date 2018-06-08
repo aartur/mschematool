@@ -38,6 +38,12 @@ class PostgresMigrations(core.MigrationsExecutor):
         self.conn = psycopg2.connect(self.db_config['dsn'])
         self.migration_table = self.db_config.get('migration_table', 'public.migration')
 
+        if '.' not in self.migration_table:
+            msg = "Migration table name '%s' must include schema" % self.migration_table
+            sys.stderr.write(msg + '\n')
+            log.critical(msg)
+            raise Exception(msg)
+
     def cursor(self):
         return self.conn.cursor(cursor_factory=PostgresLoggingDictCursor)
 
