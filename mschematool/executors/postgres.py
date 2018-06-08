@@ -36,7 +36,7 @@ class PostgresMigrations(core.MigrationsExecutor):
     def __init__(self, db_config, repository):
         core.MigrationsExecutor.__init__(self, db_config, repository)
         self.conn = psycopg2.connect(self.db_config['dsn'])
-        self.migration_table_name = self.db_config.get('migration_table_name', 'public.migration')
+        self.migration_table = self.db_config.get('migration_table', 'public.migration')
 
     def cursor(self):
         return self.conn.cursor(cursor_factory=PostgresLoggingDictCursor)
@@ -46,19 +46,19 @@ class PostgresMigrations(core.MigrationsExecutor):
             cur.execute("""CREATE TABLE IF NOT EXISTS {table} (
                 file TEXT,
                 executed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )""".format(table=self.migration_table_name))
+            )""".format(table=self.migration_table))
             cur.connection.commit()
 
     def fetch_executed_migrations(self):
         with self.cursor() as cur:
             cur.execute("""SELECT file FROM {table}
-            ORDER BY executed""".format(table=self.migration_table_name))
+            ORDER BY executed""".format(table=self.migration_table))
             return [row[0] for row in cur.fetchall()]
 
     def _migration_success(self, migration_file):
         migration = os.path.split(migration_file)[1]
         with self.cursor() as cur:
-            cur.execute("""INSERT INTO {table} (file) VALUES (%s)""".format(table=self.migration_table_name),
+            cur.execute("""INSERT INTO {table} (file) VALUES (%s)""".format(table=self.migration_table),
                     [migration])
 
     def execute_python_migration(self, migration_file, module):
