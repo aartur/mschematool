@@ -1,6 +1,7 @@
 import logging
 import os
 
+import click
 import psycopg2
 import psycopg2.extras
 
@@ -40,9 +41,8 @@ class PostgresMigrations(core.MigrationsExecutor):
 
         if '.' not in self.migration_table:
             msg = "Migration table name '%s' must include schema" % self.migration_table
-            sys.stderr.write(msg + '\n')
             log.critical(msg)
-            raise Exception(msg)
+            raise click.ClickException(msg)
 
     def cursor(self):
         return self.conn.cursor(cursor_factory=PostgresLoggingDictCursor)
