@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
         name = 'mschematool',
-        version = '0.8',
+        version = '0.9',
         packages = ['mschematool', 'mschematool.executors'],
         install_requires = [
             'click',
