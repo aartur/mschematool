@@ -64,6 +64,9 @@ For each "dbnick" (a short database name - `default` and `other` in the example)
 * `dsn` specifies database connection parameters for the `postgres` engine, as described here: http://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING
 * `migration_table` optionally specifies the name of the table that keeps track of which migrations are already applied. The default is `"public.migration"`.
 
+The `migration_table` option allows implementing a "migration table per schema" use case by configuring multiple `DATABASES` pointing to the same database, but differing in `migration_table`.
+
+
 ## Sqlite3 specific options
 
 An example sqlite3 config:
