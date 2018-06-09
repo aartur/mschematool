@@ -18,7 +18,7 @@ class Sqlite3LoggingCursor(sqlite3.Cursor):
 
     def execute(self, sql, *args):
         if log.isEnabledFor(logging.INFO):
-            log.info('Executing SQL: <<%s>> with args: <<%s>>', sql, args)
+            log.info('Executing SQL: <<%s>> with args: <<%s>>', core._simplify_whitespace(sql), args)
         try:
             sqlite3.Cursor.execute(self, sql, *args)
         except:
