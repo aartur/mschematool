@@ -1,3 +1,11 @@
+0.9
+===
+
+* new `postgres` option `migration_table` which allows configuring the name and the schema of the migration table (implemented by dirkgr)
+
+**UPGRADING**. The default value of the new option is `public.migration`. If your existing migration table is already created in a different schema (e.g. you have specified default search path in `dsn`), you will need to set this option.
+
+
 0.8
 ===
 
