@@ -46,6 +46,7 @@ DATABASES = {
             'engine': 'postgres',
             'dsn': 'host=127.0.0.1 dbname=mother',
             'after_sync': 'pg_dump -s mother > /tmp/mother_schema.sql',
+            'migration_table': 'mother_migrations',
         },
 }
 
@@ -61,6 +62,7 @@ For each "dbnick" (a short database name - `default` and `other` in the example)
 ## PostgreSQL specific options
 
 * `dsn` specifies database connection parameters for the `postgres` engine, as described here: http://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING
+* `migration_table` optionally specifies the name of the table that keeps track of which migrations are already applied. The default is `"public.migration"`.
 
 ## Sqlite3 specific options
 

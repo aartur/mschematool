@@ -28,6 +28,13 @@ DATABASES = {
             'dsn': 'host=127.0.0.1 dbname=mtest1',
         },
 
+        'different_schema': {
+            'migrations_dir': os.path.join(BASE_DIR, 'different_schema'),
+            'engine': 'postgres',
+            'dsn': 'host=127.0.0.1 dbname=mtest1',
+            'migration_table': 'hooli.migration'
+        },
+
         'cass_default': {
             'migrations_dir': os.path.join(BASE_DIR, 'cass1'),
             'engine': 'cassandra',

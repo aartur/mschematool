@@ -253,6 +253,19 @@ class PostgresTestPassingDbConfig(PostgresTestBase):
         self.assertEqual([1, 2, 3], ids)
 
 
+class PostgresTestDifferentSchema(PostgresTestBase):
+    dbnick = 'different_schema'
+
+    def testSync(self):
+        with self.r.cursor() as cur:
+            cur.execute("""CREATE SCHEMA hooli""")
+            cur.execute("""COMMIT""")
+        self.r.run('init_db')
+        self.r.run('sync')
+        out = self.r.run('latest_synced')
+        assert out.endswith('004_phone.sql')
+
+
 ### Cassandra tests
 
 

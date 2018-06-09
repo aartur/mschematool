@@ -33,39 +33,38 @@ class PostgresMigrations(core.MigrationsExecutor):
     engine = 'postgres'
     filename_extensions = ['sql']
 
-    TABLE = 'migration'
-
     def __init__(self, db_config, repository):
         core.MigrationsExecutor.__init__(self, db_config, repository)
         self.conn = psycopg2.connect(self.db_config['dsn'])
+        self.migration_table = self.db_config.get('migration_table', 'public.migration')
+
+        if '.' not in self.migration_table:
+            msg = "Migration table name '%s' must include schema" % self.migration_table
+            sys.stderr.write(msg + '\n')
+            log.critical(msg)
+            raise Exception(msg)
 
     def cursor(self):
         return self.conn.cursor(cursor_factory=PostgresLoggingDictCursor)
 
     def initialize(self):
         with self.cursor() as cur:
-            cur.execute("""SELECT EXISTS(SELECT * FROM information_schema.tables
-                           WHERE table_name=%s)""", [self.TABLE])
-            already_exists = cur.fetchone()[0]
-        if already_exists:
-            return
-        with self.cursor() as cur:
-            cur.execute("""CREATE TABLE {table} (
+            cur.execute("""CREATE TABLE IF NOT EXISTS {table} (
                 file TEXT,
                 executed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )""".format(table=self.TABLE))
+            )""".format(table=self.migration_table))
             cur.connection.commit()
 
     def fetch_executed_migrations(self):
         with self.cursor() as cur:
             cur.execute("""SELECT file FROM {table}
-            ORDER BY executed""".format(table=self.TABLE))
+            ORDER BY executed""".format(table=self.migration_table))
             return [row[0] for row in cur.fetchall()]
 
     def _migration_success(self, migration_file):
         migration = os.path.split(migration_file)[1]
         with self.cursor() as cur:
-            cur.execute("""INSERT INTO {table} (file) VALUES (%s)""".format(table=self.TABLE),
+            cur.execute("""INSERT INTO {table} (file) VALUES (%s)""".format(table=self.migration_table),
                     [migration])
 
     def execute_python_migration(self, migration_file, module):
