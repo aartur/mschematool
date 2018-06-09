@@ -82,6 +82,9 @@ class RunnerPostgres(RunnerBase):
     def close(self):
         self.conn.close()
 
+    def configured_migration_table(self):
+        return self.config_module.DATABASES[self.dbnick].get('migration_table', 'public.migration')
+
 
 class RunnerCassandra(RunnerBase):
 
@@ -168,9 +171,13 @@ class PostgresTestBasic(PostgresTestBase, CommonTests):
 
     def testInitdb(self):
         self.r.run('init_db')
+
+        # check existence of the migration table
+        schema, table = self.r.configured_migration_table().split('.')
         with self.r.cursor() as cur:
             cur.execute("""SELECT EXISTS(SELECT * FROM information_schema.tables
-                           WHERE table_name='migration')""")
+                           WHERE table_name = %s AND table_schema = %s)""",
+                        [table, schema])
             self.assertTrue(cur.fetchone()[0])
 
     def testToSync(self):
@@ -261,6 +268,12 @@ class PostgresTestDifferentSchema(PostgresTestBase):
             cur.execute("""CREATE SCHEMA hooli""")
             cur.execute("""COMMIT""")
         self.r.run('init_db')
+
+        with self.r.cursor() as cur:
+            cur.execute("""SELECT EXISTS(SELECT * FROM information_schema.tables
+                           WHERE table_name = 'migration' AND table_schema = 'hooli')""")
+            self.assertTrue(cur.fetchone()[0])
+
         self.r.run('sync')
         out = self.r.run('latest_synced')
         assert out.endswith('004_phone.sql')
