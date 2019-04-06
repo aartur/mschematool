@@ -1,7 +1,7 @@
-mschematool
-===========
+This project is deprecated and won't receive updates
+====================================================
 
-mschematool is a simple tool for managing database migrations.
+`mschematool` is a simple tool for managing database migrations.
 Migrations are native SQL/CQL scripts or Python modules. Configuration is a Python module. More details:
 
 * migrations are ordered using lexicographical comparison. Sample suggested filenames:
