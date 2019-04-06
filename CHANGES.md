@@ -1,3 +1,9 @@
+0.9.1
+=====
+
+* pin package versions to avoid compatibility problems
+
+
 0.9
 ===
 
