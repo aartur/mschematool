@@ -6,7 +6,7 @@ setup(
         packages = ['mschematool', 'mschematool.executors'],
         install_requires = [
             'click==6.7',
-            'sqlparse',
+            'sqlparse==0.2.4',
         ],
         entry_points = {
             'console_scripts': [
